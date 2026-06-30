@@ -1,0 +1,1890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>PRIME Coach — Warm-Up & Recovery</title>
+<meta name="description" content="Build per-client warm-ups, mobility, and cooldowns, then coach the session with a guided timer.">
+<!-- PWA / installable -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#12141C">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PRIME">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#12141C; --bg2:#0C0E14; --surface:#1A1E29; --surface2:#232838;
+    --line:#2B3142; --text:#F3F4F7; --muted:#99A1B3; --muted2:#6E7689;
+    --amber:#FF7A2F; --amber-soft:rgba(255,122,47,.14);
+    --volt:#BCF23A; --volt-soft:rgba(188,242,58,.13);
+    --cool:#33D6C3; --cool-soft:rgba(51,214,195,.13);
+    --steel:#6EA8FF; --steel-soft:rgba(110,168,255,.13);
+    --red:#FF5A5A; --red-soft:rgba(255,90,90,.13);
+    --yellow:#FFC53D; --yellow-soft:rgba(255,197,61,.13);
+    --green:#4ED98A; --green-soft:rgba(78,217,138,.13);
+    --radius:16px; --radius-sm:12px;
+    --shadow:0 10px 30px -12px rgba(0,0,0,.55);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{margin:0; padding:0}
+  body{
+    background:
+      radial-gradient(1100px 700px at 50% -8%, #1b2030 0%, var(--bg) 46%, var(--bg2) 100%);
+    color:var(--text);
+    font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    min-height:100dvh; line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .display{font-family:'Bebas Neue',Impact,sans-serif; letter-spacing:.02em; line-height:.92}
+  button{font-family:inherit; cursor:pointer; border:none; background:none; color:inherit}
+  a{color:var(--cool)}
+  :focus-visible{outline:3px solid var(--volt); outline-offset:2px; border-radius:8px}
+
+  /* ---------- App shell (phone frame) ---------- */
+  .app{
+    position:relative; width:100%; max-width:480px; margin:0 auto;
+    min-height:100dvh; padding:0 16px 96px;
+    background:linear-gradient(180deg, rgba(26,30,41,.35), rgba(18,20,28,.0) 220px);
+  }
+  @media(min-width:520px){
+    .app{ box-shadow:0 0 0 1px var(--line), 0 30px 80px -30px #000;
+      border-radius:28px; margin-top:18px; margin-bottom:18px; min-height:calc(100dvh - 36px); overflow:hidden}
+  }
+
+  /* ---------- Top bar ---------- */
+  .topbar{position:sticky; top:0; z-index:30; padding:14px 2px 12px;
+    background:linear-gradient(180deg, var(--bg) 62%, rgba(18,20,28,.0));
+    display:flex; align-items:center; gap:11px}
+  .logo{width:38px; height:38px; border-radius:11px; flex:none; position:relative;
+    background:linear-gradient(135deg,var(--amber),#ff5e1f); box-shadow:0 6px 16px -6px rgba(255,122,47,.7)}
+  .logo svg{position:absolute; inset:0}
+  .brand h1{font-size:25px; margin:0; letter-spacing:.06em}
+  .brand p{margin:0; font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted)}
+  .topbar .back{margin-left:auto; font-size:13px; font-weight:600; color:var(--muted);
+    padding:8px 12px; border-radius:10px; background:var(--surface); border:1px solid var(--line); display:none}
+  .topbar .back.show{display:inline-flex; align-items:center; gap:6px}
+
+  /* ---------- Generic bits ---------- */
+  .view{animation:fade .28s ease}
+  @keyframes fade{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none}}
+  @media(prefers-reduced-motion:reduce){.view,.runner-in,.sheet{animation:none}}
+  .eyebrow{font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--muted2); font-weight:700; margin:22px 0 10px}
+  .eyebrow.first{margin-top:6px}
+  .hero{margin:8px 0 6px}
+  .hero h2{font-size:42px; margin:0 0 6px; letter-spacing:.01em}
+  .hero h2 .hot{color:var(--amber)} .hero h2 .cold{color:var(--cool)}
+  .hero p{margin:0; color:var(--muted); font-size:14px; max-width:32ch}
+  .court{position:absolute; right:-30px; top:-10px; width:170px; height:170px; opacity:.5; pointer-events:none; z-index:-1}
+
+  .pill{display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700;
+    padding:5px 10px; border-radius:999px; border:1px solid var(--line); background:var(--surface); color:var(--muted)}
+  .pill.amber{color:var(--amber); border-color:rgba(255,122,47,.4); background:var(--amber-soft)}
+  .pill.volt{color:var(--volt); border-color:rgba(188,242,58,.4); background:var(--volt-soft)}
+  .pill.cool{color:var(--cool); border-color:rgba(51,214,195,.4); background:var(--cool-soft)}
+  .pill.steel{color:var(--steel); border-color:rgba(110,168,255,.4); background:var(--steel-soft)}
+  .pill.red{color:var(--red); border-color:rgba(255,90,90,.4); background:var(--red-soft)}
+  .chips{display:flex; flex-wrap:wrap; gap:8px}
+
+  /* ---------- Wizard ---------- */
+  .wizard{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:16px; box-shadow:var(--shadow)}
+  .wizard h3{margin:0 0 3px; font-size:18px}
+  .wizard .sub{margin:0 0 14px; font-size:12.5px; color:var(--muted)}
+  .field{margin-bottom:12px}
+  .field label{display:block; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted2); font-weight:700; margin-bottom:7px}
+  .seg{display:flex; gap:6px; flex-wrap:wrap}
+  .seg button{flex:1; min-width:fit-content; padding:9px 8px; font-size:13px; font-weight:600; border-radius:10px;
+    background:var(--bg2); border:1px solid var(--line); color:var(--muted); transition:.15s}
+  .seg button.on{background:var(--amber); color:#1a1206; border-color:var(--amber); box-shadow:0 4px 12px -4px rgba(255,122,47,.6)}
+  .seg.cool button.on{background:var(--cool); color:#06201d; border-color:var(--cool); box-shadow:0 4px 12px -4px rgba(51,214,195,.5)}
+  select.input{width:100%; padding:11px 12px; border-radius:10px; background:var(--bg2);
+    border:1px solid var(--line); color:var(--text); font-size:14px; font-family:inherit; appearance:none;
+    background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+    background-position:calc(100% - 18px) 18px,calc(100% - 13px) 18px; background-size:5px 5px; background-repeat:no-repeat}
+  .check{display:flex; align-items:center; gap:9px; font-size:13.5px; color:var(--text); padding:4px 0}
+  .check input{width:18px; height:18px; accent-color:var(--red)}
+  .btn-go{width:100%; margin-top:6px; padding:14px; border-radius:12px; font-size:15px; font-weight:800; letter-spacing:.02em;
+    background:linear-gradient(135deg,var(--volt),#a6e02a); color:#15200a; box-shadow:0 8px 22px -8px rgba(188,242,58,.6)}
+  .result{margin-top:14px; border:1px dashed rgba(188,242,58,.5); background:var(--volt-soft); border-radius:12px; padding:14px; display:none}
+  .result.show{display:block; animation:fade .3s ease}
+  .result .lead{font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--volt); font-weight:700}
+  .result h4{margin:4px 0 8px; font-size:20px}
+  .result .add{font-size:13px; color:var(--text); background:var(--surface); border:1px solid var(--line); border-radius:9px; padding:9px 11px; margin-top:8px}
+  .result .add b{color:var(--cool)}
+  .result .add.warn b{color:var(--red)}
+  .result button.open{margin-top:12px; width:100%; padding:11px; border-radius:10px; font-weight:700; background:var(--text); color:#10131b}
+
+  /* ---------- Cards / grids ---------- */
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:11px}
+  .grid1{display:grid; gap:11px}
+  .rcard{position:relative; text-align:left; border-radius:var(--radius); padding:15px 14px 14px; border:1px solid var(--line);
+    background:var(--surface); transition:transform .12s, border-color .15s; overflow:hidden; width:100%; display:block}
+  .rcard:active{transform:scale(.98)}
+  .rcard .accent{position:absolute; left:0; top:0; bottom:0; width:4px}
+  .rcard.warm .accent{background:linear-gradient(var(--amber),#ff5e1f)} 
+  .rcard.cold .accent{background:linear-gradient(var(--cool),#1fae9e)}
+  .rcard.power .accent{background:linear-gradient(var(--volt),#9bd826)}
+  .rcard.lift .accent{background:linear-gradient(var(--steel),#3f7fe0)}
+  .rcard .time{font-family:'Bebas Neue',sans-serif; font-size:30px; line-height:.9; letter-spacing:.02em}
+  .rcard.warm .time{color:var(--amber)} .rcard.cold .time{color:var(--cool)}
+  .rcard.power .time{color:var(--volt)} .rcard.lift .time{color:var(--steel)}
+  .rcard h3{margin:6px 0 4px; font-size:15px; letter-spacing:.01em; line-height:1.2}
+  .rcard p{margin:0; font-size:11.5px; color:var(--muted); line-height:1.4}
+  .rcard .tag{position:absolute; top:13px; right:13px; font-size:9.5px; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--muted2); font-weight:700}
+
+  .navcard{display:flex; align-items:center; gap:13px; text-align:left; width:100%;
+    background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-sm); padding:14px 14px}
+  .navcard:active{transform:scale(.99)}
+  .navcard .ic{width:42px; height:42px; border-radius:11px; flex:none; display:grid; place-items:center; font-size:20px}
+  .navcard .ic.amber{background:var(--amber-soft); color:var(--amber)}
+  .navcard .ic.volt{background:var(--volt-soft); color:var(--volt)}
+  .navcard .ic.cool{background:var(--cool-soft); color:var(--cool)}
+  .navcard .ic.steel{background:var(--steel-soft); color:var(--steel)}
+  .navcard .ic.red{background:var(--red-soft); color:var(--red)}
+  .navcard .ic.muted{background:var(--surface2); color:var(--muted)}
+  .navcard .txt h3{margin:0; font-size:14.5px}
+  .navcard .txt p{margin:1px 0 0; font-size:11.5px; color:var(--muted)}
+  .navcard .arr{margin-left:auto; color:var(--muted2); font-size:18px}
+
+  /* ---------- Routine detail ---------- */
+  .rd-head{margin:6px 0 4px}
+  .rd-head h2{font-size:30px; margin:8px 0 8px; letter-spacing:.01em; line-height:1}
+  .callout{border-radius:12px; padding:12px 13px; font-size:12.5px; margin:12px 0; border:1px solid var(--line); background:var(--surface)}
+  .callout.scale{border-color:rgba(110,168,255,.35); background:var(--steel-soft)}
+  .callout.scale b{color:var(--steel)}
+  .callout .row{display:flex; gap:8px; margin-top:6px}
+  .callout .row span{font-weight:700; color:var(--steel); min-width:74px; flex:none}
+  table.steps{width:100%; border-collapse:collapse; margin:8px 0 2px; font-size:13px}
+  table.steps th{text-align:left; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted2);
+    font-weight:700; padding:6px 8px 8px; border-bottom:1px solid var(--line)}
+  table.steps td{padding:11px 8px; border-bottom:1px solid var(--line); vertical-align:top}
+  table.steps tr:last-child td{border-bottom:none}
+  table.steps .mv{font-weight:600}
+  table.steps .ds{color:var(--amber); font-weight:700; white-space:nowrap; font-size:12.5px}
+  .cold-accent table.steps .ds{color:var(--cool)}
+  table.steps .cu{color:var(--muted); font-size:12px; display:block; margin-top:3px}
+  .run-btn{position:sticky; bottom:84px; width:100%; padding:16px; border-radius:14px; font-size:17px; font-weight:800;
+    letter-spacing:.04em; margin:16px 0 6px; background:linear-gradient(135deg,var(--amber),#ff5e1f); color:#1a1206;
+    box-shadow:0 12px 30px -10px rgba(255,122,47,.7); display:flex; align-items:center; justify-content:center; gap:9px}
+  .cold-accent .run-btn{background:linear-gradient(135deg,var(--cool),#1fae9e); color:#06201d; box-shadow:0 12px 30px -10px rgba(51,214,195,.6)}
+  .ghost-btn{width:100%; padding:12px; border-radius:11px; font-weight:700; font-size:13.5px; color:var(--muted);
+    background:var(--surface); border:1px solid var(--line); margin-bottom:8px}
+
+  /* ---------- Exercise library cards ---------- */
+  .filterbar{display:flex; gap:7px; overflow-x:auto; padding:4px 0 12px; margin:0 -2px; scrollbar-width:none}
+  .filterbar::-webkit-scrollbar{display:none}
+  .filterbar button{flex:none; padding:7px 13px; border-radius:999px; font-size:12.5px; font-weight:600;
+    background:var(--surface); border:1px solid var(--line); color:var(--muted); white-space:nowrap}
+  .filterbar button.on{background:var(--text); color:#10131b; border-color:var(--text)}
+  .ex{border:1px solid var(--line); background:var(--surface); border-radius:var(--radius-sm); padding:14px; margin-bottom:11px}
+  .ex .top{display:flex; align-items:flex-start; gap:8px; justify-content:space-between}
+  .ex h3{margin:0; font-size:15px; line-height:1.2}
+  .ex .badge{font-size:9px; letter-spacing:.1em; text-transform:uppercase; font-weight:800; padding:3px 8px; border-radius:6px; flex:none; margin-top:1px}
+  .badge.dyn{background:var(--amber-soft); color:var(--amber)}
+  .badge.act{background:var(--volt-soft); color:var(--volt)}
+  .badge.sta{background:var(--cool-soft); color:var(--cool)}
+  .badge.plyo{background:var(--steel-soft); color:var(--steel)}
+  .ex .dose{font-size:12px; color:var(--amber); font-weight:700; margin:6px 0 10px}
+  .ex .line{display:flex; gap:9px; font-size:12.5px; padding:5px 0; align-items:baseline}
+  .ex .line .k{flex:none; width:18px; font-weight:800; font-size:13px}
+  .ex .cue .k{color:var(--volt)} .ex .miss .k{color:var(--red)} .ex .pro .k{color:var(--green)} .ex .reg .k{color:var(--steel)}
+  .ex .line .v{color:var(--text)} .ex .line .v b{color:var(--muted); font-weight:600}
+  .areatags{margin-top:9px; display:flex; flex-wrap:wrap; gap:5px}
+  .areatags span{font-size:10px; color:var(--muted2); background:var(--bg2); border:1px solid var(--line); padding:2px 7px; border-radius:6px}
+
+  /* ---------- Content blocks ---------- */
+  .block{border:1px solid var(--line); background:var(--surface); border-radius:var(--radius-sm); padding:15px; margin-bottom:12px}
+  .block h3{margin:0 0 8px; font-size:16px}
+  .block p{margin:0 0 8px; font-size:13.5px; color:var(--text)}
+  .block p:last-child{margin-bottom:0}
+  .block ul{margin:6px 0 0; padding-left:18px; font-size:13.5px}
+  .block li{margin-bottom:7px}
+  .light{display:flex; gap:12px; align-items:flex-start; border-radius:12px; padding:13px; margin-bottom:11px; border:1px solid var(--line)}
+  .light .dot{width:16px; height:16px; border-radius:50%; flex:none; margin-top:3px}
+  .light.g{background:var(--green-soft); border-color:rgba(78,217,138,.35)} .light.g .dot{background:var(--green)}
+  .light.y{background:var(--yellow-soft); border-color:rgba(255,197,61,.35)} .light.y .dot{background:var(--yellow)}
+  .light.r{background:var(--red-soft); border-color:rgba(255,90,90,.4)} .light.r .dot{background:var(--red)}
+  .light h4{margin:0 0 3px; font-size:14.5px} .light h4 small{font-weight:600; color:var(--muted); font-size:12px}
+  .light p{margin:0; font-size:12.5px; color:var(--text)}
+  .qrow{display:flex; gap:11px; padding:12px 2px; border-bottom:1px solid var(--line); font-size:13.5px}
+  .qrow:last-child{border-bottom:none}
+  .qrow .n{font-family:'Bebas Neue',sans-serif; font-size:22px; color:var(--amber); flex:none; width:26px; line-height:1}
+  .qrow .q b{display:block; color:var(--text)} .qrow .q span{font-size:12px; color:var(--muted)}
+  .script{border-left:3px solid var(--amber); padding:4px 0 4px 14px; margin:10px 0; font-size:13.5px; color:var(--text); font-style:italic}
+  .script.post{border-color:var(--cool)}
+  .wtable{width:100%; border-collapse:collapse; font-size:12.5px}
+  .wtable th{text-align:left; font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted2); font-weight:700; padding:8px 6px; border-bottom:1px solid var(--line)}
+  .wtable td{padding:10px 6px; border-bottom:1px solid var(--line); vertical-align:top}
+  .wtable tr:last-child td{border-bottom:none}
+  .wtable td:first-child{font-weight:700; white-space:nowrap}
+
+  /* ---------- Bottom nav ---------- */
+  .tabbar{position:fixed; left:50%; transform:translateX(-50%); bottom:0; width:100%; max-width:480px; z-index:40;
+    display:flex; padding:8px 8px calc(8px + env(safe-area-inset-bottom)); gap:2px;
+    background:linear-gradient(180deg, rgba(12,14,20,.0), var(--bg2) 38%); backdrop-filter:blur(10px)}
+  .tabbar .border{position:absolute; top:8px; left:8px; right:8px; height:62px; border:1px solid var(--line);
+    background:rgba(26,30,41,.92); border-radius:18px; z-index:-1}
+  .tab{flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:11px 2px; color:var(--muted2); border-radius:14px}
+  .tab svg{width:21px; height:21px}
+  .tab span{font-size:9.5px; font-weight:700; letter-spacing:.03em}
+  .tab.on{color:var(--amber)}
+  .tab.on.cooltab{color:var(--cool)}
+
+  /* ---------- Runner overlay ---------- */
+  .runner{position:fixed; inset:0; z-index:100; background:
+    radial-gradient(900px 600px at 50% 0%, #1c2230, var(--bg2) 60%); display:none; flex-direction:column;
+    padding:max(20px,env(safe-area-inset-top)) 22px max(22px,env(safe-area-inset-bottom))}
+  .runner.show{display:flex}
+  .runner-in{display:flex; flex-direction:column; height:100%; animation:fade .3s ease}
+  .runner .rtop{display:flex; align-items:center; justify-content:space-between}
+  .runner .rtop .rname{font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); font-weight:700}
+  .runner .x{width:40px; height:40px; border-radius:50%; background:var(--surface); border:1px solid var(--line); font-size:18px; color:var(--muted)}
+  .progress{display:flex; gap:4px; margin:18px 0 6px}
+  .progress i{flex:1; height:4px; border-radius:3px; background:var(--surface2)}
+  .progress i.done{background:var(--volt)} .progress i.cur{background:var(--amber)}
+  .progress.cold i.done{background:var(--cool)} .progress.cold i.cur{background:var(--cool)}
+  .stepwrap{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:4px}
+  .stepwrap .count{font-size:13px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted2); font-weight:700}
+  .stepwrap .movename{font-family:'Bebas Neue',sans-serif; font-size:clamp(38px,12vw,58px); margin:6px 0 2px; letter-spacing:.01em; line-height:.95}
+  .stepwrap .dosebig{font-size:17px; color:var(--amber); font-weight:800; margin-bottom:22px}
+  .cold-run .stepwrap .dosebig{color:var(--cool)}
+  .clock{font-family:'Bebas Neue',sans-serif; font-size:clamp(78px,26vw,120px); line-height:.85; letter-spacing:.02em;
+    color:var(--text); font-variant-numeric:tabular-nums}
+  .clock.flash{animation:flash .5s ease}
+  @keyframes flash{0%,100%{color:var(--text)} 40%{color:var(--volt)}}
+  .cuebar{margin-top:18px; border:1px solid rgba(188,242,58,.4); background:var(--volt-soft); border-radius:14px; padding:13px 15px; max-width:380px}
+  .cuebar .lbl{font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--volt); font-weight:800}
+  .cuebar p{margin:3px 0 0; font-size:14.5px; color:var(--text); line-height:1.35}
+  .rctrl{display:flex; gap:10px; align-items:center; margin-top:18px}
+  .rctrl button{flex:1; padding:15px; border-radius:13px; font-weight:800; font-size:15px; border:1px solid var(--line); background:var(--surface); color:var(--text)}
+  .rctrl .next{flex:1.6; background:linear-gradient(135deg,var(--amber),#ff5e1f); color:#1a1206; border:none}
+  .cold-run .rctrl .next{background:linear-gradient(135deg,var(--cool),#1fae9e); color:#06201d}
+  .rctrl .play{flex:none; width:56px; font-size:18px}
+  .autorow{display:flex; align-items:center; justify-content:center; gap:8px; margin-top:14px; font-size:12px; color:var(--muted)}
+  .autorow input{accent-color:var(--volt)}
+  .done-screen{text-align:center; padding:30px 10px}
+  .done-screen .big{font-family:'Bebas Neue',sans-serif; font-size:54px; color:var(--volt); letter-spacing:.02em}
+  .cold-run .done-screen .big{color:var(--cool)}
+
+  .foot{text-align:center; font-size:11px; color:var(--muted2); padding:24px 10px 8px; line-height:1.6}
+
+  /* ---------- Print ---------- */
+  #printArea{display:none}
+  @media print{
+    body{background:#fff; color:#000}
+    .app,.tabbar,.runner,.topbar{display:none !important}
+    #printArea{display:block; padding:0}
+    .pcard{border:1.5px solid #222; border-radius:10px; padding:12px 14px; margin:0 0 10px; break-inside:avoid; page-break-inside:avoid}
+    .pcard h3{margin:0 0 2px; font-size:15px; font-family:Arial,sans-serif}
+    .pcard .pd{font-size:11px; color:#444; margin-bottom:6px; font-weight:bold}
+    .pcard .pl{font-size:12px; margin:3px 0; font-family:Arial,sans-serif}
+    .pcard .pl b{display:inline-block; width:96px}
+    #printArea h1{font-size:20px; font-family:Arial,sans-serif; margin:0 0 2px}
+    #printArea .psub{font-size:12px; color:#444; margin:0 0 14px}
+    @page{margin:14mm}
+  }
+
+  /* ---------- Forms / buttons (Phase 1) ---------- */
+  input.input, textarea.input{width:100%; padding:11px 12px; border-radius:10px; background:var(--bg2);
+    border:1px solid var(--line); color:var(--text); font-size:14px; font-family:inherit}
+  textarea.input{min-height:72px; resize:vertical; line-height:1.45}
+  input.input::placeholder, textarea.input::placeholder{color:var(--muted2)}
+  input.input:focus, textarea.input:focus, select.input:focus{border-color:var(--amber); outline:none}
+  .btn{display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:13px 16px;
+    border-radius:12px; font-weight:800; font-size:14.5px; letter-spacing:.01em; border:none}
+  .btn.primary{background:linear-gradient(135deg,var(--amber),#ff5e1f); color:#1a1206; box-shadow:0 8px 22px -10px rgba(255,122,47,.7)}
+  .btn.coolb{background:linear-gradient(135deg,var(--cool),#1fae9e); color:#06201d}
+  .btn.sec{background:var(--surface); border:1px solid var(--line); color:var(--text); font-weight:700}
+  .btn.danger{background:var(--red-soft); border:1px solid rgba(255,90,90,.4); color:var(--red); font-weight:700}
+  .btn.full{width:100%}
+  .btn.sm{padding:9px 13px; font-size:13px; border-radius:10px}
+  .btnrow{display:flex; gap:10px; margin:16px 0 4px}
+
+  /* ---------- Clients ---------- */
+  .add-primary{width:100%; margin:2px 0 16px; padding:15px; border-radius:14px; font-weight:800; font-size:15px;
+    letter-spacing:.02em; background:linear-gradient(135deg,var(--amber),#ff5e1f); color:#1a1206;
+    box-shadow:0 10px 26px -10px rgba(255,122,47,.6); display:flex; align-items:center; justify-content:center; gap:9px}
+  .cl-card{display:flex; align-items:center; gap:13px; width:100%; text-align:left; background:var(--surface);
+    border:1px solid var(--line); border-radius:var(--radius-sm); padding:14px; margin-bottom:11px}
+  .cl-card:active{transform:scale(.99)}
+  .cl-av{width:46px; height:46px; border-radius:13px; flex:none; display:grid; place-items:center;
+    font-family:'Bebas Neue',sans-serif; font-size:22px; color:#1a1206; background:linear-gradient(135deg,var(--amber),#ff7e3a)}
+  .cl-card .ct{min-width:0}
+  .cl-card .ct h3{margin:0; font-size:15.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .cl-card .ct p{margin:2px 0 0; font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .cl-card .cnt{margin-left:auto; display:flex; flex-direction:column; align-items:flex-end; gap:1px; flex:none; padding-left:8px}
+  .cl-card .cnt b{font-family:'Bebas Neue',sans-serif; font-size:23px; color:var(--cool); line-height:1}
+  .cl-card .cnt span{font-size:9px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted2); font-weight:700}
+  .empty{text-align:center; border:1px dashed var(--line); border-radius:var(--radius); padding:34px 22px; color:var(--muted); background:var(--surface)}
+  .empty .em-ic{font-size:34px; margin-bottom:10px}
+  .empty h3{margin:0 0 6px; font-size:17px; color:var(--text)}
+  .empty p{margin:0 auto 0; font-size:13px; max-width:30ch}
+
+  /* ---------- Program cards (in client detail) ---------- */
+  .pg-card{position:relative; width:100%; text-align:left; background:var(--surface); border:1px solid var(--line);
+    border-radius:var(--radius-sm); padding:14px 14px 13px 16px; margin-bottom:11px; overflow:hidden}
+  .pg-card .accent{position:absolute; left:0; top:0; bottom:0; width:4px}
+  .pg-card.warm .accent{background:linear-gradient(var(--amber),#ff5e1f)}
+  .pg-card.cool .accent{background:linear-gradient(var(--cool),#1fae9e)}
+  .pg-card .pg-top{display:flex; align-items:flex-start; gap:8px; justify-content:space-between}
+  .pg-card h3{margin:0; font-size:15px; line-height:1.2}
+  .kindtag{flex:none; font-size:9px; letter-spacing:.1em; text-transform:uppercase; font-weight:800; padding:3px 8px; border-radius:6px; margin-top:1px}
+  .kindtag.warm{background:var(--amber-soft); color:var(--amber)}
+  .kindtag.cool{background:var(--cool-soft); color:var(--cool)}
+  .pg-card .pg-sub{font-size:12px; color:var(--muted); margin:6px 0 12px}
+  .pg-card .pg-act{display:flex; gap:8px}
+
+  /* ---------- Program builder ---------- */
+  .bcount{font-size:12px; color:var(--muted); text-align:center; margin:2px 0 12px}
+  .bstep{display:flex; gap:10px; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:11px 11px 11px 9px; margin-bottom:10px}
+  .bstep .ord{display:flex; flex-direction:column; gap:5px; flex:none; padding-top:1px}
+  .bstep .ord button{width:30px; height:26px; border-radius:8px; background:var(--bg2); border:1px solid var(--line); color:var(--muted); font-size:12px; display:grid; place-items:center}
+  .bstep .ord button:disabled{opacity:.3}
+  .bstep .bmain{flex:1; min-width:0}
+  .bstep .bmove{font-weight:700; font-size:14px; display:flex; align-items:flex-start; justify-content:space-between; gap:8px; line-height:1.25}
+  .bstep .bmove .del{flex:none; color:var(--red); background:var(--red-soft); border:1px solid rgba(255,90,90,.35); width:28px; height:28px; border-radius:8px; font-size:13px}
+  .bstep .brow{display:flex; gap:8px; margin-top:9px}
+  .bstep .brow .bf{flex:1; min-width:0}
+  .bstep .brow .bf.dose{flex:none; width:100px}
+  .bstep .brow label{display:block; font-size:9px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted2); font-weight:700; margin-bottom:4px}
+  .bstep input.bi, .bstep textarea.bi{width:100%; padding:8px 9px; border-radius:8px; background:var(--bg2); border:1px solid var(--line); color:var(--text); font-size:12.5px; font-family:inherit}
+  .bstep textarea.bi{resize:vertical; min-height:34px; line-height:1.35}
+  .bstep input.bi:focus, .bstep textarea.bi:focus{border-color:var(--amber); outline:none}
+  .add-ex{width:100%; padding:13px; border-radius:12px; border:1px dashed rgba(188,242,58,.5); background:var(--volt-soft);
+    color:var(--volt); font-weight:800; font-size:14px; margin:4px 0 8px; display:flex; align-items:center; justify-content:center; gap:8px}
+
+  /* ---------- Picker sheet ---------- */
+  .sheet{position:fixed; inset:0; z-index:90; display:none; flex-direction:column; background:rgba(8,10,14,.62); backdrop-filter:blur(3px)}
+  .sheet.show{display:flex}
+  .sheet-in{margin-top:auto; margin-left:auto; margin-right:auto; width:100%; max-width:480px; background:var(--bg);
+    border-top:1px solid var(--line); border-radius:22px 22px 0 0; max-height:90vh; display:flex; flex-direction:column;
+    box-shadow:0 -20px 50px -20px #000; animation:slideup .28s ease}
+  @keyframes slideup{from{transform:translateY(28px)} to{transform:none}}
+  @media(prefers-reduced-motion:reduce){.sheet-in{animation:none}}
+  .sheet-head{padding:15px 16px 12px; border-bottom:1px solid var(--line)}
+  .sheet-head .sh-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:12px}
+  .sheet-head h3{margin:0; font-size:17px}
+  .sheet-head .x{width:34px; height:34px; border-radius:50%; background:var(--surface); border:1px solid var(--line); color:var(--muted); font-size:15px}
+  .sheet-search{width:100%; padding:11px 12px; border-radius:10px; background:var(--surface); border:1px solid var(--line); color:var(--text); font-size:14px; font-family:inherit}
+  .sheet-search::placeholder{color:var(--muted2)}
+  .sheet-search:focus{border-color:var(--amber); outline:none}
+  .sheet-body{overflow-y:auto; -webkit-overflow-scrolling:touch; padding:13px 16px 4px; flex:1}
+  .sheet-foot{padding:12px 16px calc(14px + env(safe-area-inset-bottom)); border-top:1px solid var(--line); background:var(--bg)}
+  .pick{display:flex; align-items:center; gap:11px; width:100%; text-align:left; background:var(--surface);
+    border:1px solid var(--line); border-radius:11px; padding:10px 12px; margin-bottom:9px}
+  .pick.sel{border-color:var(--volt); background:var(--volt-soft)}
+  .pick .chk{width:24px; height:24px; border-radius:7px; border:1.5px solid var(--line); flex:none; display:grid; place-items:center; font-size:13px; color:#15200a; background:var(--bg2)}
+  .pick.sel .chk{background:var(--volt); border-color:var(--volt)}
+  .pick .pk{flex:1; min-width:0}
+  .pick .pk h4{margin:0; font-size:13.5px}
+  .pick .pk p{margin:2px 0 0; font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .pick .pbadge{flex:none; font-size:8.5px; letter-spacing:.08em; text-transform:uppercase; font-weight:800; padding:3px 7px; border-radius:5px}
+  .pbadge.dyn{background:var(--amber-soft); color:var(--amber)}
+  .pbadge.act{background:var(--volt-soft); color:var(--volt)}
+  .pbadge.sta{background:var(--cool-soft); color:var(--cool)}
+  .pbadge.plyo{background:var(--steel-soft); color:var(--steel)}
+  .pick-empty{text-align:center; color:var(--muted); font-size:13px; padding:24px 10px}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="topbar">
+    <div class="logo">
+      <svg viewBox="0 0 38 38" fill="none"><circle cx="19" cy="19" r="10" stroke="#1a1206" stroke-width="1.5"/><path d="M9 19h20M19 9v20M12 12l14 14M26 12L12 26" stroke="#1a1206" stroke-width="1.2" opacity=".7"/></svg>
+    </div>
+    <div class="brand">
+      <h1 class="display">PRIME</h1>
+      <p>Warm-Up &amp; Recovery</p>
+    </div>
+    <button class="back" id="backBtn" onclick="goBack()">‹ Back</button>
+  </div>
+
+  <main id="main"></main>
+
+  <div class="foot">PRIME is a coaching tool, not medical advice. Stop on sharp pain and use the red-flag list to refer.<br>Rebrand freely — this is built for your studio.</div>
+</div>
+
+<!-- Bottom nav -->
+<nav class="tabbar">
+  <div class="border"></div>
+  <button class="tab" data-tab="home" onclick="nav('home')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg><span>Home</span></button>
+  <button class="tab" data-tab="clients" onclick="nav('clients')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c0-3 2.4-5 5.5-5s5.5 2 5.5 5"/><path d="M16 5.6a3 3 0 0 1 0 5.3M17 14.1c2.4.4 4 2.3 4 4.9"/></svg><span>Clients</span></button>
+  <button class="tab" data-tab="warm" onclick="nav('warm')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2s4 4 4 9a4 4 0 1 1-8 0c0-2 1-3 1-3s3 2 3-6z"/></svg><span>Warm-Up</span></button>
+  <button class="tab" data-tab="cool" onclick="nav('cool')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M4 7l8 4 8-4M4 17l8-4 8 4M12 6l-3-2M12 6l3-2M12 18l-3 2M12 18l3 2"/></svg><span>Cooldown</span></button>
+  <button class="tab" data-tab="tools" onclick="nav('tools')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg><span>Tools</span></button>
+</nav>
+
+<!-- Exercise picker sheet (program builder) -->
+<div class="sheet" id="pickSheet"><div class="sheet-in" id="pickIn"></div></div>
+
+<!-- Runner overlay -->
+<div class="runner" id="runner">
+  <div class="runner-in" id="runnerIn"></div>
+</div>
+
+<!-- Print container -->
+<div id="printArea"></div>
+
+<script>
+/* ============================================================
+   DATA
+   ============================================================ */
+
+// ---- Master exercise library ----
+// cat: dyn(amic warmup) | act(ivation) | sta(tic/cooldown) | plyo(landing)
+const EX = [
+  // ---------- DYNAMIC WARM-UP ----------
+  {id:'march', n:'Marching Knee Hug', cat:'dyn', dose:'30 sec', areas:['Hips','Glutes','Core'],
+   cue:'Stand tall, hug knee to chest, squeeze the standing glute.',
+   miss:'Rounding the back or rushing — stay tall and controlled.',
+   pro:'Add a calf raise on the standing leg at the top.', reg:'Hold a wall or chair for balance.'},
+  {id:'swingfb', n:'Leg Swings — Front to Back', cat:'dyn', dose:'10/side', areas:['Hips','Hamstrings'],
+   cue:'Loose leg, swing through a pain-free range, hips square.',
+   miss:'Forcing height with a stiff back — let the hip do the work.',
+   pro:'Increase range as you loosen up.', reg:'Smaller, slower swings; hold support.'},
+  {id:'swingside', n:'Leg Swings — Side to Side', cat:'dyn', dose:'10/side', areas:['Hips','Groin / Adductors'],
+   cue:'Swing across the body, stay tall, toes forward.',
+   miss:'Twisting the torso to throw the leg — keep hips facing forward.',
+   pro:'Open the range as the groin warms.', reg:'Lower swing height, use a wall.'},
+  {id:'quadpull', n:'Walking Quad Pull + Reach', cat:'dyn', dose:'4/side', areas:['Hips','Quads'],
+   cue:'Heel to glute, free arm reaches up, ribs down.',
+   miss:'Arching the low back to "feel" the stretch.',
+   pro:'Add a slow march step between each rep.', reg:'Do it standing in place with support.'},
+  {id:'wgs', n:"World's Greatest Stretch", cat:'dyn', dose:'4/side', areas:['Hips','Groin / Adductors','T-Spine'],
+   cue:'Long lunge, drop the back hip, reach hand to ceiling.',
+   miss:'Letting the front knee cave inward.',
+   pro:'Add an elbow-to-instep dip before the rotation.', reg:'Hands on a bench; shorten the lunge.'},
+  {id:'inchworm', n:'Inchworm to Plank', cat:'dyn', dose:'5 reps', areas:['Hamstrings','Core','Shoulders'],
+   cue:'Soft knees, walk hands out to a tall plank, walk back.',
+   miss:'Hips sagging in the plank — squeeze glutes and brace.',
+   pro:'Add a push-up at the plank.', reg:'Bend knees more; shorten the walk-out.'},
+  {id:'latlunge', n:'Lateral Lunge (Dynamic)', cat:'dyn', dose:'6/side', areas:['Groin / Adductors','Hips'],
+   cue:'Sit into the bent hip, other leg straight, chest up.',
+   miss:'Rounding forward or letting the knee collapse in.',
+   pro:'Add a reach to the foot of the bent leg.', reg:'Reduce depth; hold a post for balance.'},
+  {id:'cossack', n:'Cossack Squat', cat:'dyn', dose:'5/side', areas:['Groin / Adductors','Hips','Ankles'],
+   cue:'Shift side to side low and slow, heel of straight leg down.',
+   miss:'Rushing and bouncing at the bottom.',
+   pro:'Go deeper and add a brief pause each side.', reg:'Hold a support and stay shallow.'},
+  {id:'spider', n:'Spiderman Lunge + Rotation', cat:'dyn', dose:'4/side', areas:['Hips','T-Spine'],
+   cue:'Step foot outside the hand, rotate, follow your hand with your eyes.',
+   miss:'Letting the hips pike up instead of sinking.',
+   pro:'Pause 2 sec in the rotated position.', reg:'Skip the rotation; just hold the lunge.'},
+  {id:'sqstand', n:'Squat to Stand', cat:'dyn', dose:'6 reps', areas:['Hamstrings','Hips','Ankles'],
+   cue:'Grab toes, drop hips down, lift the chest tall, then stand.',
+   miss:'Yanking up instead of sinking the hips first.',
+   pro:'Add a 2-sec hold at the bottom.', reg:'Hold the shins instead of the toes.'},
+  {id:'askip', n:'A-Skips', cat:'dyn', dose:'2×20 m', areas:['Hips','Calves'],
+   cue:'Punch the knee up, quick off the ground, tall posture.',
+   miss:'Reaching out front and over-striding.',
+   pro:'Increase tempo and rhythm.', reg:'Slow A-march with no hop.'},
+  {id:'highknee', n:'High Knees', cat:'dyn', dose:'2×20 m', areas:['Hips','Calves'],
+   cue:'Knees up, fast feet, stay on the balls of the feet.',
+   miss:'Leaning back — keep a slight forward lean.',
+   pro:'Increase turnover speed.', reg:'Reduce to a brisk knee-up march.'},
+  {id:'buttkick', n:'Butt Kicks', cat:'dyn', dose:'2×20 m', areas:['Quads','Hamstrings'],
+   cue:'Heels flick to the glutes, quick and light.',
+   miss:'Cycling the whole leg back — keep it under the hips.',
+   pro:'Faster turnover.', reg:'Walking heel flicks.'},
+  {id:'carioca', n:'Carioca', cat:'dyn', dose:'2×20 m', areas:['Hips','Groin / Adductors','T-Spine'],
+   cue:'Hips loose, cross front and back, stay light on the feet.',
+   miss:'Stiff hips and crossing too far.',
+   pro:'Add speed and exaggerate the hip turn.', reg:'Slow grapevine, small steps.'},
+  {id:'armcircle', n:'Arm Circles / Swings', cat:'dyn', dose:'30 sec', areas:['Shoulders'],
+   cue:'Big smooth circles forward then back, relaxed neck.',
+   miss:'Shrugging the shoulders up to the ears.',
+   pro:'Add cross-body arm swings.', reg:'Smaller circles, slower pace.'},
+  {id:'pullapart', n:'Band Pull-Aparts', cat:'act', dose:'15 reps', areas:['Shoulders','Stabilizers'],
+   cue:'Pull the band apart to the chest, squeeze the shoulder blades.',
+   miss:'Shrugging or arching the back to move the band.',
+   pro:'Use a heavier band or slow the return.', reg:'Lighter band or wider grip.'},
+  {id:'openbook', n:'Open Book (T-Spine)', cat:'dyn', dose:'6/side', areas:['T-Spine','Shoulders'],
+   cue:'On your side, open the top arm, follow the hand with your eyes.',
+   miss:'Letting the knees roll open — keep them stacked and down.',
+   pro:'Hold the end position for 2 breaths.', reg:'Smaller rotation range.'},
+  {id:'pogo', n:'Pogo Hops', cat:'plyo', dose:'2×15', areas:['Calves','Ankles'],
+   cue:'Stiff ankles, quiet bounce, stay tall like a pogo stick.',
+   miss:'Bending the knees deep and landing heavy/loud.',
+   pro:'Single-leg pogos.', reg:'Smaller, slower hops or fast heel raises.'},
+  {id:'9090', n:'90/90 Hip Switch', cat:'dyn', dose:'8/side', areas:['Hips'],
+   cue:'Sit tall, rotate both knees side to side, chest proud.',
+   miss:'Collapsing the chest and using hands to muscle through.',
+   pro:'Lift the hips slightly off the floor each switch.', reg:'Reduce range; use hands for support.'},
+  {id:'anklerock', n:'Knee-to-Wall Ankle Rock', cat:'dyn', dose:'8/side', areas:['Ankles','Calves'],
+   cue:'Drive the knee over the toes toward the wall, heel stays down.',
+   miss:'Heel lifting or knee caving inward.',
+   pro:'Move the foot back to increase the challenge.', reg:'Move the foot closer to the wall.'},
+
+  // ---------- ACTIVATION ----------
+  {id:'bridge', n:'Glute Bridge', cat:'act', dose:'12 reps', areas:['Glutes','Core'], target:'Glutes',
+   cue:'Drive through the heels, squeeze the glutes, ribs down.',
+   miss:'Arching the low back instead of finishing with the glutes.',
+   pro:'Pause 2 sec at the top.', reg:'Smaller range of motion.'},
+  {id:'slbridge', n:'Single-Leg Glute Bridge', cat:'act', dose:'8/side', areas:['Glutes','Stabilizers'], target:'Glutes',
+   cue:'One foot down, hips level, push through the heel.',
+   miss:'Letting the free-side hip drop.',
+   pro:'Slow the lower to 3 seconds.', reg:'Keep the free foot lightly on the floor.'},
+  {id:'monster', n:'Lateral Band Walk', cat:'act', dose:'10/side', areas:['Glutes','Stabilizers'], target:'Glutes',
+   cue:'Band above knees, stay low, push the knees out, small steps.',
+   miss:'Standing up tall and letting knees cave in.',
+   pro:'Band at the ankles or heavier band.', reg:'Lighter band, shorter steps.'},
+  {id:'clam', n:'Clamshell', cat:'act', dose:'12/side', areas:['Glutes','Stabilizers'], target:'Glutes',
+   cue:'Heels together, open the top knee, keep hips stacked.',
+   miss:'Rolling the hips back to cheat the range.',
+   pro:'Add a band around the knees.', reg:'Smaller opening, no band.'},
+  {id:'deadbug', n:'Dead Bug', cat:'act', dose:'6/side', areas:['Core'], target:'Core',
+   cue:'Low back pressed down, ribs down, extend opposite arm and leg slowly.',
+   miss:'Low back popping up off the floor.',
+   pro:'Slow the tempo or add a light weight.', reg:'Move only the legs, keep arms still.'},
+  {id:'birddog', n:'Bird Dog', cat:'act', dose:'8/side', areas:['Core','Stabilizers'], target:'Core',
+   cue:'Reach opposite arm and leg long, hips level, brace the middle.',
+   miss:'Rotating the hips or arching the back.',
+   pro:'Pause 2 sec and add a small "stir" at the end.', reg:'Move only one limb at a time.'},
+  {id:'plank', n:'Front Plank', cat:'act', dose:'30 sec', areas:['Core','Stabilizers'], target:'Core',
+   cue:'Elbows under shoulders, squeeze glutes, long straight line.',
+   miss:'Hips sagging or piking up.',
+   pro:'Add shoulder taps.', reg:'Drop to the knees.'},
+  {id:'sideplank', n:'Side Plank', cat:'act', dose:'25 sec/side', areas:['Core','Stabilizers'], target:'Stabilizers',
+   cue:'Stack the body, lift the hips high, reach tall.',
+   miss:'Letting the bottom hip sink.',
+   pro:'Lift the top leg.', reg:'Bend the bottom knee for support.'},
+  {id:'copen', n:'Copenhagen Plank', cat:'act', dose:'20 sec/side', areas:['Groin / Adductors','Stabilizers'], target:'Adductors',
+   cue:'Top foot on a bench, squeeze the inner thigh, hips up.',
+   miss:'Letting the hips drop or twisting the torso.',
+   pro:'Straighten the bottom leg (long lever).', reg:'Bottom knee down on the floor (short lever).'},
+  {id:'addsqueeze', n:'Adductor Squeeze', cat:'act', dose:'5×5 sec', areas:['Groin / Adductors'], target:'Adductors',
+   cue:'Ball or fist between the knees, squeeze hard, breathe.',
+   miss:'Holding your breath or clenching the jaw.',
+   pro:'Squeeze in a 90/90 bridge position.', reg:'Lighter squeeze, shorter holds.'},
+  {id:'calfraise', n:'Calf Raise', cat:'act', dose:'15 reps', areas:['Calves','Ankles'], target:'Calves',
+   cue:'Up tall on the balls of the feet, pause, lower slow.',
+   miss:'Bouncing through the bottom without control.',
+   pro:'Single-leg or pause at the top.', reg:'Hold support; both feet.'},
+  {id:'tibraise', n:'Banded Dorsiflexion / Tib Raise', cat:'act', dose:'15 reps', areas:['Ankles','Calves'], target:'Calves',
+   cue:'Pull the toes up toward the shin, control the lower.',
+   miss:'Using momentum instead of the front-of-shin muscle.',
+   pro:'Add a band or slow the tempo.', reg:'Fewer reps, no band.'},
+  {id:'wallslide', n:'Scapular Wall Slide', cat:'act', dose:'10 reps', areas:['Shoulders','T-Spine','Stabilizers'], target:'Stabilizers',
+   cue:'Back to the wall, slide arms up and down, keep contact.',
+   miss:'Ribs flaring and low back arching off the wall.',
+   pro:'Add a small lift-off at the top.', reg:'Reduce the range you keep contact.'},
+  {id:'ytw', n:'Y-T-W Raises', cat:'act', dose:'8 each', areas:['Shoulders','Stabilizers'], target:'Stabilizers',
+   cue:'Thumbs up, lift into Y, T, then W, squeeze the blades.',
+   miss:'Shrugging the neck and using the traps.',
+   pro:'Add light plates or hold each 1 sec.', reg:'No weight, smaller lifts.'},
+
+  // ---------- MOBILITY (static / specific) ----------
+  {id:'hipflexor', n:'Half-Kneeling Hip Flexor Stretch', cat:'sta', dose:'30–45 sec/side', areas:['Hips','Quads'],
+   cue:'Tuck the tailbone, squeeze the back glute, gentle shift forward.',
+   miss:'Arching the back and pushing the knee far forward.',
+   pro:'Reach the same-side arm overhead.', reg:'Less forward shift; cushion the knee.'},
+  {id:'pigeon', n:'Pigeon Stretch', cat:'sta', dose:'45–60 sec/side', areas:['Hips','Glutes'],
+   cue:'Front shin angled, hips square, melt forward slowly.',
+   miss:'Dumping all weight to one side.',
+   pro:'Walk the chest lower toward the floor.', reg:'Do figure-4 on your back instead.'},
+  {id:'deepsquat', n:'Deep Squat Hold', cat:'sta', dose:'45 sec', areas:['Hips','Ankles','Groin / Adductors'],
+   cue:'Sit in the bottom, elbows push knees out, chest tall.',
+   miss:'Heels lifting and back rounding hard.',
+   pro:'Add gentle side-to-side rocking.', reg:'Hold a post or sit on a low box.'},
+  {id:'firehydrant', n:'Fire Hydrant Circles', cat:'dyn', dose:'8/side', areas:['Hips','Glutes'],
+   cue:'On all fours, open the hip and draw slow circles.',
+   miss:'Shifting the whole body to lift the leg.',
+   pro:'Larger circles, add a band.', reg:'Smaller lifts, no circle.'},
+  {id:'frog', n:'Frog Stretch (Rock)', cat:'sta', dose:'45–60 sec', areas:['Groin / Adductors','Hips'],
+   cue:'Knees wide, shins down, rock the hips gently back.',
+   miss:'Forcing the hips back into sharp groin pain.',
+   pro:'Rock further back over time.', reg:'Narrow the knees; smaller rock.'},
+  {id:'addrock', n:'Adductor Rock-Back', cat:'dyn', dose:'8/side', areas:['Groin / Adductors'],
+   cue:'One leg out to the side, rock back, feel the inner thigh lengthen.',
+   miss:'Letting the foot of the straight leg roll over.',
+   pro:'Hold the back position 2 sec.', reg:'Shorten the rock range.'},
+  {id:'fold', n:'Forward Fold (Hamstrings)', cat:'sta', dose:'40–60 sec', areas:['Hamstrings'],
+   cue:'Soft knees, hinge at the hips, let the head and arms hang heavy.',
+   miss:'Yanking down and forcing locked-out knees.',
+   pro:'Slowly straighten the knees over time.', reg:'Bend the knees generously; hands on shins.'},
+  {id:'slrdl', n:'Single-Leg RDL Reach', cat:'dyn', dose:'6/side', areas:['Hamstrings','Glutes','Stabilizers'],
+   cue:'Hinge over the standing leg, flat back, reach the other leg behind.',
+   miss:'Rounding the back or rotating the hips open.',
+   pro:'Add a light weight or slow the tempo.', reg:'Tap the back toe down for balance.'},
+  {id:'bandham', n:'Supine Band Hamstring Stretch', cat:'sta', dose:'30–45 sec/side', areas:['Hamstrings'],
+   cue:'Strap around the foot, leg up, knee soft, relax into it.',
+   miss:'Pulling so hard the hips lift off the floor.',
+   pro:'Gradually straighten the knee.', reg:'Bend the knee more; ease the pull.'},
+  {id:'gastroc', n:'Gastroc Calf Stretch (Straight Knee)', cat:'sta', dose:'30 sec/side', areas:['Calves','Ankles'],
+   cue:'Back leg straight, heel down, lean into the wall.',
+   miss:'Back heel popping up off the floor.',
+   pro:'Slightly further back for more stretch.', reg:'Step closer to the wall.'},
+  {id:'soleus', n:'Soleus Calf Stretch (Bent Knee)', cat:'sta', dose:'30 sec/side', areas:['Calves','Ankles'],
+   cue:'Bend the back knee, heel stays down, sink low.',
+   miss:'Letting the heel lift as you bend.',
+   pro:'Sink a touch lower.', reg:'Reduce the depth.'},
+  {id:'ddpedal', n:'Downward Dog Pedal', cat:'dyn', dose:'8/side', areas:['Calves','Hamstrings','Shoulders'],
+   cue:'Hips high, pedal the heels one at a time toward the floor.',
+   miss:'Rounding the upper back and dropping the head.',
+   pro:'Hold each heel down 2 sec.', reg:'Bend the knees; shorten the hold.'},
+  {id:'latstretch', n:'Lat Stretch (Rack / Doorway)', cat:'sta', dose:'30–45 sec/side', areas:['Lats','Shoulders'],
+   cue:'Grip overhead, sit the hips back, breathe into the side.',
+   miss:'Shrugging the shoulder up into the ear.',
+   pro:'Add a gentle side bend away.', reg:'Less hip sit-back; lighter pull.'},
+  {id:'childside', n:"Child's Pose Side Reach", cat:'sta', dose:'40 sec/side', areas:['Lats','T-Spine'],
+   cue:'Sit hips back, walk both hands to one side, breathe.',
+   miss:'Lifting the opposite hip off the heels.',
+   pro:'Reach a little further each breath.', reg:'Stay centered; smaller reach.'},
+  {id:'rolllat', n:'Foam Roll Lats', cat:'sta', dose:'30 sec/side', areas:['Lats','T-Spine'],
+   cue:'Lie on your side on the roller, slow passes under the armpit.',
+   miss:'Rolling fast and skipping the tender spots.',
+   pro:'Pause and breathe on tight spots.', reg:'Less body weight on the roller.'},
+  {id:'banddislo', n:'Band Pass-Throughs', cat:'dyn', dose:'10 reps', areas:['Shoulders','T-Spine'],
+   cue:'Wide grip, sweep the band overhead and back, arms long.',
+   miss:'Bending the elbows to force it past.',
+   pro:'Narrow the grip slightly.', reg:'Widen the grip; slower pace.'},
+  {id:'crossbody', n:'Cross-Body Shoulder Stretch', cat:'sta', dose:'30 sec/side', areas:['Shoulders'],
+   cue:'Pull the arm across the body, relax the shoulder down.',
+   miss:'Pulling on the elbow joint into pinching pain.',
+   pro:'Hold a touch longer.', reg:'Ease the pull pressure.'},
+  {id:'thread', n:'Thread the Needle', cat:'dyn', dose:'5/side', areas:['T-Spine','Shoulders'],
+   cue:'On all fours, reach one arm under and through, then open up.',
+   miss:'Letting the hips drift instead of rotating the spine.',
+   pro:'Pause in the open position 2 breaths.', reg:'Smaller reach and rotation.'},
+  {id:'quadtspine', n:'Quadruped T-Spine Rotation', cat:'dyn', dose:'6/side', areas:['T-Spine'],
+   cue:'Hand behind head, rotate the elbow up, eyes follow.',
+   miss:'Rotating from the low back instead of the mid-back.',
+   pro:'Hold the top for 2 sec.', reg:'Reduce the range.'},
+  {id:'catcow', n:'Cat-Cow', cat:'dyn', dose:'8 reps', areas:['T-Spine','Core'],
+   cue:'Round up to the ceiling, then arch and open, move with the breath.',
+   miss:'Forcing the ends of range instead of flowing.',
+   pro:'Slow it down and segment the spine.', reg:'Smaller, gentle waves.'},
+  {id:'rollext', n:'Foam Roll T-Spine Extensions', cat:'sta', dose:'45 sec', areas:['T-Spine'],
+   cue:'Roller under the mid-back, support the head, extend gently.',
+   miss:'Cranking the neck or arching from the low back.',
+   pro:'Pause and breathe over each segment.', reg:'Smaller extensions, hands supporting.'},
+
+  // ---------- COOLDOWN-ONLY STATICS ----------
+  {id:'fig4', n:'Figure-4 Glute Stretch', cat:'sta', dose:'40 sec/side', areas:['Glutes','Hips'],
+   cue:'Ankle over the opposite knee, pull the thigh in, relax.',
+   miss:'Tensing the shoulders and holding the breath.',
+   pro:'Draw the knee closer to the chest.', reg:'Keep the foot on the floor and lean.'},
+  {id:'butterfly', n:'Butterfly Stretch', cat:'sta', dose:'45–60 sec', areas:['Groin / Adductors','Hips'],
+   cue:'Soles together, sit tall, let the knees soften down.',
+   miss:'Pushing the knees down hard with the hands.',
+   pro:'Hinge the chest gently forward.', reg:'Move the feet further from the body.'},
+  {id:'quadstretch', n:'Standing Quad Stretch', cat:'sta', dose:'30 sec/side', areas:['Quads','Hips'],
+   cue:'Heel to glute, knees together, tuck the tailbone.',
+   miss:'Letting the knee flare out and the back arch.',
+   pro:'Add a slight hip push forward.', reg:'Hold support; lower foot.'},
+  {id:'pec', n:'Doorway Pec Stretch', cat:'sta', dose:'30 sec/side', areas:['Shoulders'],
+   cue:'Forearm on the frame, step through, open the chest gently.',
+   miss:'Over-rotating into a pinch at the front of the shoulder.',
+   pro:'Raise the arm angle to hit different fibers.', reg:'Lower the arm; step less.'},
+  {id:'childpose', n:"Child's Pose", cat:'sta', dose:'45 sec', areas:['Lats','T-Spine','Hips'],
+   cue:'Hips to heels, arms long, breathe into the back.',
+   miss:'Holding tension in the neck and shoulders.',
+   pro:'Reach the arms further forward.', reg:'Widen the knees; place a cushion under the hips.'},
+  {id:'twist', n:'Supine Spinal Twist', cat:'sta', dose:'30 sec/side', areas:['T-Spine','Glutes'],
+   cue:'Drop both knees to one side, open the arms, look away.',
+   miss:'Forcing both shoulders flat through pain.',
+   pro:'Let the knees settle lower.', reg:'Place a pillow under the knees.'},
+  {id:'legsup', n:'Legs Up the Wall', cat:'sta', dose:'1–2 min', areas:['Hamstrings'],
+   cue:'Hips near the wall, legs resting up, slow nasal breathing.',
+   miss:'Tensing the legs instead of fully relaxing.',
+   pro:'Add gentle ankle pumps.', reg:'Bend the knees; move hips back.'},
+  {id:'box', n:'Box Breathing', cat:'sta', dose:'60–90 sec', areas:['Core'],
+   cue:'In 4, hold 4, out 4, hold 4 — slow and nasal.',
+   miss:'Breathing high into the chest and shoulders.',
+   pro:'Lengthen the exhale to 6 counts.', reg:'Shorten to a 3-count box.'},
+  {id:'rollquad', n:'Foam Roll Quads', cat:'sta', dose:'30 sec/side', areas:['Quads','Hips'],
+   cue:'Slow passes from hip to knee, breathe through tender spots.',
+   miss:'Rolling fast like a race.',
+   pro:'Pause on knots and gently bend the knee.', reg:'Less body weight; both legs.'},
+  {id:'rollglute', n:'Foam Roll Glutes / TFL', cat:'sta', dose:'30 sec/side', areas:['Glutes','Hips'],
+   cue:'Sit on the roller, cross one ankle over the knee, lean in.',
+   miss:'Holding your breath on the sore spot.',
+   pro:'Pause and breathe on the tender area.', reg:'Reduce the lean and pressure.'},
+  {id:'rollcalf', n:'Foam Roll Calves', cat:'sta', dose:'30 sec/side', areas:['Calves'],
+   cue:'Roller under the calf, slow passes, rotate the foot in and out.',
+   miss:'Speeding through without finding tight spots.',
+   pro:'Stack the other leg on top for pressure.', reg:'Keep the other foot on the floor.'},
+
+  // ---------- LANDING & PLYO ----------
+  {id:'stick', n:'Stick the Landing', cat:'plyo', dose:'5 reps', areas:['Glutes','Stabilizers'], target:'Landing',
+   cue:'Jump, land soft, hips back, knees over toes — freeze 2 sec.',
+   miss:'Knees caving in or landing stiff and loud.',
+   pro:'Land from a higher jump.', reg:'Step up and step down to a soft stick.'},
+  {id:'dropstick', n:'Drop & Stick', cat:'plyo', dose:'5 reps', areas:['Glutes','Stabilizers'], target:'Landing',
+   cue:'Step off a low box, absorb quietly, stick and hold.',
+   miss:'Letting the knees collapse inward on contact.',
+   pro:'Use a slightly higher box.', reg:'Lower box or step-down only.'},
+  {id:'slstick', n:'Single-Leg Stick', cat:'plyo', dose:'4/side', areas:['Glutes','Stabilizers'], target:'Landing',
+   cue:'Land on one leg, knee tracks over the toe, hold steady 2 sec.',
+   miss:'Wobbling and letting the knee dive inward.',
+   pro:'Add a small hop before the stick.', reg:'Two-foot takeoff, one-foot land low height.'},
+  {id:'latbound', n:'Lateral Bound & Stick', cat:'plyo', dose:'4/side', areas:['Glutes','Groin / Adductors','Stabilizers'], target:'Landing',
+   cue:'Push off sideways, land on the outside leg, stick and hold.',
+   miss:'Landing flat-footed with the knee collapsing in.',
+   pro:'Bound farther and hold longer.', reg:'Shorter bound; tap the trail foot down.'},
+  {id:'decel', n:'Deceleration Drill', cat:'plyo', dose:'4 reps', areas:['Glutes','Quads','Stabilizers'], target:'Landing',
+   cue:'Build to a jog/sprint, then brake under control — hips back, chest up.',
+   miss:'Stopping upright on stiff legs.',
+   pro:'Increase the approach speed.', reg:'Slower approach; longer braking distance.'},
+  {id:'boxstick', n:'Box Jump to Stick', cat:'plyo', dose:'5 reps', areas:['Glutes','Stabilizers'], target:'Landing',
+   cue:'Jump onto the box, land soft and quiet, stand tall.',
+   miss:'Crashing onto the box with locked knees.',
+   pro:'Raise the box height.', reg:'Lower box; step down, never jump down.'},
+  {id:'tuck', n:'Tuck Jump (Athlete)', cat:'plyo', dose:'5 reps', areas:['Glutes','Calves','Stabilizers'], target:'Landing',
+   cue:'Jump, drive the knees up, land soft and balanced.',
+   miss:'Knees drifting in on take-off or landing.',
+   pro:'Continuous reactive tuck jumps.', reg:'Single jumps with a full reset between reps.'},
+  {id:'slide', n:'Defensive Slides', cat:'plyo', dose:'4× width', areas:['Glutes','Groin / Adductors'], target:'Footwork',
+   cue:'Stay low, push off the outside foot, don\'t click the heels.',
+   miss:'Standing up tall and crossing the feet.',
+   pro:'Add a direction change on a call.', reg:'Slower, shorter slides.'},
+  {id:'closeout', n:'Closeout Footwork', cat:'plyo', dose:'4 reps', areas:['Glutes','Stabilizers'], target:'Footwork',
+   cue:'Sprint, then chop the feet short, sit the hips, hands high.',
+   miss:'Running through under control — break down before contact.',
+   pro:'Closeout into a defensive slide.', reg:'Walk-through the chop steps.'},
+];
+
+// ---- Routines: [name, dose, cue] ----
+const R = {
+  q5:{title:'5-Minute Quick Warm-Up', mins:'5', tag:'warm', level:'All levels', type:'General / pre-anything', color:'warm',
+    blurb:'Short on time? Wake up the whole body fast before any session.',
+    scale:{Beginner:'Hold a wall for the swings and lunges; reduce range.',Intermediate:'Run it as written.',Athlete:'Add 5 stick-the-landings at the end.'},
+    steps:[['Marching Knee Hug','30 sec','Tall posture, knee to chest, squeeze the glute.'],
+      ['Leg Swings — Front/Back','30 sec','Loose leg, swing through a comfy range.'],
+      ['Walking Quad Pull + Reach','4/side','Heel to glute, ribs down, reach tall.'],
+      ["World's Greatest Stretch",'4/side','Drop the back hip, reach to the ceiling.'],
+      ['Bodyweight Squats','10 reps','Knees out, chest up, sit between the hips.'],
+      ['Lateral Lunge','5/side','Sit into the bent hip, chest tall.'],
+      ['A-Skips','30 sec','Punch the knee up, quick off the floor.'],
+      ['Pogo Hops','20 sec','Stiff ankles, quiet light bounce.']]},
+
+  w10:{title:'10-Minute Standard Warm-Up', mins:'10', tag:'warm', level:'Beginner → Intermediate', type:'General / weights', color:'warm',
+    blurb:'The everyday default: raise the temperature, mobilize, switch the muscles on, then prime.',
+    scale:{Beginner:'Use the regressions, support balance, skip the pogos if new.',Intermediate:'Run as written.',Athlete:'Step up to the 15-minute athlete warm-up.'},
+    steps:[['Easy Cardio (jog / bike / rope)','90 sec','Build a light sweat, nothing hard.'],
+      ['Marching Knee Hug','30 sec','Tall, controlled, squeeze the glute.'],
+      ['Leg Swings — Front/Back + Side','30 sec ea','Hips square, swing freely.'],
+      ["World's Greatest Stretch",'4/side','Long lunge, big reach up.'],
+      ['Squat to Stand','6 reps','Grab the toes, sink hips, lift the chest.'],
+      ['Open Book (T-Spine)','5/side','Follow your hand with your eyes.'],
+      ['Glute Bridge','12 reps','Squeeze the glutes, don\'t arch the back.'],
+      ['Lateral Band Walk','10/side','Stay low, push the knees out.'],
+      ['Dead Bug','6/side','Ribs down, slow and braced.'],
+      ['A-Skips','2×20 m','Tall and springy.'],
+      ['Pogo Hops','2×15','Quick and quiet off the floor.']]},
+
+  a15:{title:'15-Minute Athlete Warm-Up', mins:'15', tag:'warm', level:'Athlete', type:'Performance / sport', color:'power',
+    blurb:'Full ramp — raise, activate, mobilize, then potentiate with sprints, hops and landings.',
+    scale:{Beginner:'Not yet — build with the 10-minute version first.',Intermediate:'Drop the build-up sprints to 60–70% and cut bounds.',Athlete:'Run as written; push the sprints last.'},
+    steps:[['Jog + Dynamic Arm Swings','2 min','Easy pace, loosen the shoulders.'],
+      ['Leg Swings — Front/Back + Side','30 sec ea','Open the hips progressively.'],
+      ["World's Greatest Stretch",'5/side','Deep lunge, rotate and reach.'],
+      ['90/90 Hip Switch','8/side','Sit tall, rotate side to side.'],
+      ['Knee-to-Wall Ankle Rock','8/side','Knee over toes, heel stays down.'],
+      ['Glute Bridge → Single-Leg','8/side','Hips level, drive through the heel.'],
+      ['Lateral Band Walk','10/side','Low, knees out, small steps.'],
+      ['Dead Bug + Bird Dog','6/side ea','Brace hard, move slow.'],
+      ['A-Skips / High Knees / Butt Kicks','20 m ea','Crisp rhythm, fast feet.'],
+      ['Carioca','2×20 m','Loose hips, light feet.'],
+      ['Build-Up Sprints','3×20 m','60% → 70% → 80%, smooth acceleration.'],
+      ['Pogo Hops','2×20','Stiff and reactive.'],
+      ['Stick the Landing','5 reps','Land soft, hips back, freeze 2 sec.'],
+      ['Lateral Bound & Stick','4/side','Land on the outside leg and hold.']]},
+
+  c5:{title:'5-Minute Cooldown', mins:'5', tag:'cool', level:'All levels', type:'Down-regulate', color:'cold',
+    blurb:'Bring the heart rate down and lengthen the big muscles you just worked.',
+    scale:{Beginner:'Keep stretches gentle — tension, never pain.',Intermediate:'Run as written.',Athlete:'Add 30 sec of box breathing to start.'},
+    steps:[['Box Breathing','60 sec','In 4, hold 4, out 4, hold 4 — nasal.'],
+      ['Forward Fold (Hamstrings)','30 sec','Soft knees, hang heavy and relaxed.'],
+      ['Figure-4 Glute Stretch','30 sec/side','Pull the thigh in, relax the shoulders.'],
+      ['Half-Kneeling Hip Flexor','30 sec/side','Tuck the tailbone, squeeze the back glute.'],
+      ['Doorway Pec Stretch','30 sec/side','Open the chest gently, breathe.'],
+      ["Child's Pose",'45 sec','Hips to heels, breathe into the back.']]},
+
+  c10:{title:'10-Minute Full Cooldown', mins:'10', tag:'cool', level:'All levels', type:'Recovery + breathe', color:'cold',
+    blurb:'A complete wind-down: easy movement, foam roll, full-body stretch and a calm finish.',
+    scale:{Beginner:'Ease off the foam roller pressure.',Intermediate:'Run as written.',Athlete:'Hold each stretch toward the longer end.'},
+    steps:[['Easy Walk / Bike','2 min','Slowly bring the heart rate down.'],
+      ['Box Breathing','60 sec','Slow nasal breathing, long exhale.'],
+      ['Foam Roll Quads','30 sec/side','Slow passes, breathe through tight spots.'],
+      ['Foam Roll Glutes / TFL','30 sec/side','Cross the ankle over, lean in.'],
+      ['Foam Roll Calves','30 sec/side','Rotate the foot in and out.'],
+      ['Forward Fold (Hamstrings)','40 sec','Hinge, relax, let it lengthen.'],
+      ['Figure-4 Glute Stretch','40 sec/side','Knee toward chest, relax.'],
+      ['Half-Kneeling Hip Flexor','40 sec/side','Tailbone tucked, gentle shift.'],
+      ['Butterfly (Adductors)','40 sec','Soles together, sit tall, soften the knees.'],
+      ['Calf Stretch (Gastroc + Soleus)','30 sec ea','Straight knee, then bent knee.'],
+      ['Supine Spinal Twist','30 sec/side','Knees over, open the arms, look away.'],
+      ['Legs Up the Wall','60 sec','Rest the legs up, slow breaths.']]},
+
+  bball:{title:'Basketball Pre-Game', mins:'12–15', tag:'warm', level:'Athlete', type:'Basketball', color:'warm',
+    blurb:'Court-ready prep: open the hips and ankles, fire the glutes, sharpen footwork and landings. Finish ≤10 min before tip.',
+    scale:{Beginner:'Half the sprint speed, skip the bounds, keep landings low.',Intermediate:'Reduce sprints to 80%.',Athlete:'Run as written and build sprints to 90%.'},
+    steps:[['Light Jog + Arm Swings','2 min','Easy, loosen the shoulders.'],
+      ['Leg Swings — Front/Back + Side','30 sec ea','Open the hips.'],
+      ["World's Greatest Stretch",'4/side','Deep lunge, rotate and reach.'],
+      ['90/90 Hip Switch','6/side','Sit tall, rotate the knees.'],
+      ['Knee-to-Wall Ankle Rock','8/side','Knee over toes, heel down.'],
+      ['Glute Bridge','12 reps','Squeeze the glutes hard.'],
+      ['Lateral Band Walk','10/side','Low and wide, knees out.'],
+      ['Defensive Slides','4× width','Stay low, push off the outside foot.'],
+      ['Closeout Footwork','4 reps','Chop the feet, sit the hips, hands up.'],
+      ['Build-Up Sprints','3× court','70% → 80% → 90% baseline to baseline.'],
+      ['Pogo Hops','2×15','Stiff ankles, reactive.'],
+      ['Stick the Landing','5 reps','Land soft, hips back, knees out, hold.'],
+      ['Lateral Bound & Stick','4/side','Land outside leg, freeze 2 sec.']]},
+
+  lift:{title:'Weight Room Pre-Lift', mins:'8–10', tag:'warm', level:'All levels', type:'Weights', color:'lift',
+    blurb:'Prep the joints, switch on the glutes and mid-back, then match the day. End with ramp-up sets into your working weight.',
+    scale:{Beginner:'Lighter bands, extra ramp-up sets, slower tempo.',Intermediate:'Run as written.',Athlete:'Add a primer like 3 pogos or a jump before heavy lower work.'},
+    steps:[['Easy Cardio','2 min','Light sweat, raise the temperature.'],
+      ["World's Greatest Stretch",'4/side','Open the hips and mid-back.'],
+      ['Cat-Cow','6 reps','Round and arch with the breath.'],
+      ['Glute Bridge','12 reps','Finish with the glutes, ribs down.'],
+      ['Band Pull-Aparts','15 reps','Squeeze the shoulder blades.'],
+      ['Squat Day: Goblet Squat to Stand','8 reps','Elbows inside knees, push knees out.'],
+      ['Deadlift Day: Hip Hinge w/ Dowel','8 reps','Hinge back, flat spine, soft knees.'],
+      ['Press Day: Scap Push-Up + Wall Slide','8 ea','Reach long, then slide and pull down.'],
+      ['Lateral Band Walk','10/side','Low, knees out, small steps.'],
+      ['Ramp-Up Sets','2–3 sets','Add load gradually to your working weight.']]},
+
+  recovery:{title:'Recovery Day Mobility Flow', mins:'15–20', tag:'cool', level:'All levels', type:'Off-day recovery', color:'cold',
+    blurb:'A slow, breathing-led flow for off days. Longer holds, easy effort, leave feeling looser — never sore.',
+    scale:{Beginner:'Shorten holds; support balance.',Intermediate:'Run as written.',Athlete:'Hold the longer end and add a second round of tight areas.'},
+    steps:[['Box Breathing','90 sec','Slow nasal breathing, long exhale.'],
+      ['Cat-Cow','8 reps','Slow, segment the spine.'],
+      ["World's Greatest Stretch (slow)",'4/side','Sink and breathe in each position.'],
+      ['90/90 Hip Switch','8/side','Tall chest, easy rotation.'],
+      ['Frog Stretch (Rock)','60 sec','Knees wide, rock the hips back gently.'],
+      ['Pigeon Stretch','60 sec/side','Square the hips, melt forward.'],
+      ['Half-Kneeling Hip Flexor','45 sec/side','Tuck the tailbone, gentle shift.'],
+      ['Forward Fold (Hamstrings)','60 sec','Soft knees, hang heavy.'],
+      ['Butterfly','60 sec','Soles together, soften the knees down.'],
+      ['Thread the Needle','5/side','Reach under, then open up.'],
+      ['Open Book','6/side','Follow the hand with the eyes.'],
+      ["Child's Pose Side Reach",'45 sec/side','Walk the hands over, breathe into the side.'],
+      ['Calf Stretch (Gastroc + Soleus)','30 sec ea','Straight knee, then bent.'],
+      ['Legs Up the Wall','2 min','Rest, relax, slow breaths.']]},
+};
+
+const MOB_AREAS = ['Hips','Hamstrings','Groin / Adductors','Ankles','Calves','Lats','Shoulders','T-Spine'];
+const ACT_TARGETS = ['Glutes','Core','Adductors','Calves','Stabilizers'];
+
+/* ============================================================
+   ROUTER
+   ============================================================ */
+const main = document.getElementById('main');
+const backBtn = document.getElementById('backBtn');
+let history = [{view:'home',opt:null}];
+let activeTab = 'home';
+
+function setTab(t){
+  activeTab = t;
+  document.querySelectorAll('.tab').forEach(b=>{
+    const on = b.dataset.tab===t;
+    b.classList.toggle('on', on);
+    b.classList.toggle('cooltab', on && (t==='cool'||t==='mobility'));
+  });
+}
+function nav(view, opt){ history=[{view:'home',opt:null}]; if(view!=='home') history.push({view,opt:opt||null}); render(view,opt); }
+function push(view, opt){ history.push({view,opt:opt||null}); render(view,opt); }
+function goBack(){ if(history.length>1){ history.pop(); const top=history[history.length-1]; render(top.view, top.opt); } }
+function updateBack(){ backBtn.classList.toggle('show', history.length>1); }
+// jump straight to a client's detail with a clean back trail (clients → detail)
+function goDetail(id){ history=[{view:'home',opt:null},{view:'clients',opt:null},{view:'clientDetail',opt:id}]; render('clientDetail',id); }
+
+function render(view, opt){
+  window.scrollTo(0,0);
+  updateBack();
+  // sync tab highlight (client sub-views keep the Clients tab lit)
+  const tabMap={home:'home',clients:'clients',clientDetail:'clients',clientForm:'clients',
+    programBuilder:'clients',warm:'warm',cool:'cool',tools:'tools'};
+  if(tabMap[view]) setTab(tabMap[view]);
+  const fn = VIEWS[view] || VIEWS.home;
+  main.innerHTML = `<div class="view">${fn(opt)}</div>`;
+  if(view==='home') initWizard();
+  else if(view==='clients') loadClientList();
+  else if(view==='clientDetail') loadClientDetail(opt);
+  else if(view==='clientForm') initClientForm(opt);
+  else if(view==='programBuilder') initBuilder(opt);
+}
+
+/* ============================================================
+   VIEW BUILDERS
+   ============================================================ */
+function routineCard(key){
+  const r=R[key];
+  return `<button class="rcard ${r.color}" onclick="push('routine','${key}')">
+    <div class="accent"></div>
+    <span class="tag">${r.tag==='warm'?'Warm-Up':'Cooldown'}</span>
+    <div class="time display">${r.mins}<span style="font-size:13px"> min</span></div>
+    <h3>${r.title.replace(/^\d+.*Minute /,'').replace(/^\d+–\d+ /,'')}</h3>
+    <p>${r.type}</p>
+  </button>`;
+}
+function navCard(icon,cls,title,sub,onclick){
+  return `<button class="navcard" onclick="${onclick}">
+    <div class="ic ${cls}">${icon}</div>
+    <div class="txt"><h3>${title}</h3><p>${sub}</p></div>
+    <div class="arr">›</div></button>`;
+}
+
+const VIEWS = {
+
+home(){ return `
+  <div class="hero">
+    <svg class="court" viewBox="0 0 200 200" fill="none" stroke="#FF7A2F" stroke-width="1.4">
+      <path d="M200 100a60 60 0 0 1-120 0"/><circle cx="200" cy="100" r="26"/><path d="M120 40v120"/>
+    </svg>
+    <h2 class="display">GET THEM <span class="hot">READY.</span><br>BRING THEM <span class="cold">BACK.</span></h2>
+    <p>Pick a routine, hit <b>Run It</b>, and coach the timer. Built for lifters, hoopers, youth athletes &amp; tight-hipped adults.</p>
+  </div>
+
+  <button class="navcard" onclick="nav('clients')" style="margin:4px 0 2px">
+    <div class="ic cool">👥</div>
+    <div class="txt"><h3>My Clients</h3><p>Build &amp; save each client&rsquo;s own programs</p></div>
+    <div class="arr">›</div></button>
+
+  <div class="wizard" id="wizard">
+    <h3>Find my routine</h3>
+    <p class="sub">Answer three things and get a pick in seconds.</p>
+    <div class="field"><label>Client level</label>
+      <div class="seg" data-w="level">
+        <button data-v="Beginner" class="on">Beginner</button>
+        <button data-v="Intermediate">Intermediate</button>
+        <button data-v="Athlete">Athlete</button></div></div>
+    <div class="field"><label>Workout type</label>
+      <div class="seg" data-w="type">
+        <button data-v="General" class="on">General</button>
+        <button data-v="Weights">Weights</button>
+        <button data-v="Basketball">Basketball</button>
+        <button data-v="Recovery">Recovery</button></div></div>
+    <div class="field"><label>Time available</label>
+      <div class="seg" data-w="time">
+        <button data-v="5" class="on">5 min</button>
+        <button data-v="10">10 min</button>
+        <button data-v="15">15 min</button></div></div>
+    <div class="field"><label>Tight area to target (optional)</label>
+      <select class="input" id="wArea">
+        <option value="">None / full body</option>
+        ${MOB_AREAS.map(a=>`<option value="${a}">${a}</option>`).join('')}
+      </select></div>
+    <label class="check"><input type="checkbox" id="wInjury"> Injury caution today — show me the pain rules</label>
+    <button class="btn-go" onclick="runWizard()">Find my routine ⚡</button>
+    <div class="result" id="wResult"></div>
+  </div>
+
+  <div class="eyebrow">Quick routines</div>
+  <div class="grid2">
+    ${routineCard('q5')}${routineCard('w10')}${routineCard('a15')}${routineCard('bball')}
+    ${routineCard('lift')}${routineCard('recovery')}${routineCard('c5')}${routineCard('c10')}
+  </div>
+
+  <div class="eyebrow">Browse the system</div>
+  <div class="grid1">
+    ${navCard('🔥','amber','Warm-Up Library','Every dynamic + activation move','nav(\'warm\')')}
+    ${navCard('❄️','cool','Cooldown Library','Stretch, breathe, foam roll','nav(\'cool\')')}
+    ${navCard('🧩','cool','Mobility by Area','Hips, hams, ankles, shoulders &amp; more','nav(\'mobility\')')}
+    ${navCard('⚡','volt','Activation','Glutes, core, adductors, calves, stabilizers','push(\'activation\')')}
+    ${navCard('🛬','steel','Landing &amp; Injury Prevention','Stick, bound, decelerate — safe knees','push(\'landing\')')}
+    ${navCard('🚦','red','Pain Rules &amp; Modifications','Traffic-light system &amp; safe swaps','push(\'pain\')')}
+    ${navCard('🚩','red','Red Flags — When to Refer','Stop signs that need a pro','push(\'redflags\')')}
+    ${navCard('📋','muted','Client Intake Questions','Ask before you program','push(\'intake\')')}
+    ${navCard('🗣️','muted','Coach Scripts','What to say before &amp; after','push(\'scripts\')')}
+    ${navCard('📅','muted','Weekly Use Guide','How to slot it into the week','push(\'weekly\')')}
+    ${navCard('🖨️','muted','Printable Trainer Cards','Print the whole library or one routine','push(\'print\')')}
+  </div>`;
+},
+
+warm(){
+  return libraryView('Warm-Up Library','Dynamic prep + activation, color-tagged by type.',
+    ['dyn','act','plyo'], 'warm');
+},
+cool(){
+  return libraryView('Cooldown Library','Static stretch, breathing &amp; foam rolling to recover.',
+    ['sta'], 'cool');
+},
+
+mobility(){
+  return `<div class="hero" style="margin-bottom:4px"><h2 class="display" style="font-size:34px">MOBILITY <span class="cold">BY AREA</span></h2>
+    <p>Tap a body area to see dynamic and static options. Add any of these to a warm-up or cooldown.</p></div>
+    <div class="grid2" style="margin-top:16px">
+    ${MOB_AREAS.map(a=>`<button class="rcard cold" onclick="push('areaList','${encodeURIComponent(a)}')">
+      <div class="accent"></div><h3 style="margin:2px 0 4px;font-size:16px">${a}</h3>
+      <p>${EX.filter(e=>e.areas.includes(a)).length} drills</p></button>`).join('')}
+    </div>
+    <div class="callout" style="margin-top:18px"><b style="color:var(--cool)">Tight-area rule of thumb:</b> add 2–3 of an area's drills, 3–4×/week, to actually change range. One session won't do it — consistency does.</div>`;
+},
+
+routine(key){
+  const r=R[key]; const cold = r.tag==='cool';
+  return `<div class="${cold?'cold-accent':''}">
+    <div class="rd-head">
+      <div class="chips" style="margin-top:4px">
+        <span class="pill ${cold?'cool':'amber'}">${r.mins} min</span>
+        <span class="pill">${r.level}</span>
+        <span class="pill">${r.type}</span>
+      </div>
+      <h2 class="display">${r.title}</h2>
+      <p style="color:var(--muted);font-size:13.5px;margin:0">${r.blurb}</p>
+    </div>
+
+    <div class="callout scale">
+      <b>Level scaling</b>
+      <div class="row"><span>Beginner</span><div>${r.scale.Beginner}</div></div>
+      <div class="row"><span>Intermed.</span><div>${r.scale.Intermediate}</div></div>
+      <div class="row"><span>Athlete</span><div>${r.scale.Athlete}</div></div>
+    </div>
+
+    <table class="steps">
+      <thead><tr><th>Move</th><th>Dose</th></tr></thead>
+      <tbody>
+        ${r.steps.map(s=>`<tr><td class="mv">${s[0]}<span class="cu">${s[2]}</span></td><td class="ds">${s[1]}</td></tr>`).join('')}
+      </tbody>
+    </table>
+
+    <button class="run-btn" onclick="runBuiltin('${key}')">▶ RUN IT — guided timer</button>
+    <button class="ghost-btn" onclick="printRoutine('${key}')">🖨️ Print this routine as a card</button>
+    <div class="callout" style="border-color:rgba(255,90,90,.3);background:var(--red-soft);margin-top:8px">
+      <b style="color:var(--red)">Pain check:</b> tension &amp; warmth = good. Sharp, pinching, or radiating pain = stop and swap. <a onclick="push('pain')" style="cursor:pointer">See pain rules ›</a>
+    </div>
+  </div>`;
+},
+
+activation(){
+  return `<div class="hero" style="margin-bottom:4px"><h2 class="display" style="font-size:34px">ACTIVATION</h2>
+    <p>Wake the muscles up so they fire when it counts. Grouped by what they switch on.</p></div>
+    ${ACT_TARGETS.map(t=>{
+      const list = EX.filter(e=>e.target===t || (e.cat==='act' && e.areas.includes(t)) || (e.cat==='act'&&t==='Adductors'&&e.areas.includes('Groin / Adductors')));
+      // de-dup
+      const seen=new Set(); const items=list.filter(e=>{ if(seen.has(e.id))return false; seen.add(e.id); return true; });
+      return `<div class="eyebrow">${t}</div>${items.map(exCard).join('')}`;
+    }).join('')}`;
+},
+
+landing(){
+  const items = EX.filter(e=>e.cat==='plyo');
+  return `<div class="hero" style="margin-bottom:4px"><h2 class="display" style="font-size:32px">LANDING &amp; <span style="color:var(--steel)">INJURY PREVENTION</span></h2>
+    <p>For jumpers and cutters. The goal is quiet, balanced landings with knees that track over the toes.</p></div>
+    <div class="callout" style="border-color:rgba(110,168,255,.35);background:var(--steel-soft)">
+      <b style="color:var(--steel)">The 4 landing keys:</b> 1) Land <b>soft</b> &amp; quiet · 2) Hips <b>back</b>, chest up · 3) Knees <b>over toes</b> (never caving in) · 4) <b>Stick</b> and hold 2 sec. Always step <i>down</i> from a box — never jump down.
+    </div>
+    ${items.map(exCard).join('')}
+    <div class="callout" style="border-color:rgba(255,90,90,.3);background:var(--red-soft)">
+      <b style="color:var(--red)">Youth note:</b> if you see knees caving inward (valgus) on landing, drop the height, cut the volume, and drill stick-the-landing before adding any jumping. Quality first.
+    </div>`;
+},
+
+areaList(area){
+  area = decodeURIComponent(area);
+  const items = EX.filter(e=>e.areas.includes(area));
+  return `<div class="hero" style="margin-bottom:4px"><span class="pill cool">Mobility</span>
+    <h2 class="display" style="font-size:32px;margin-top:8px">${area}</h2>
+    <p>${items.length} options — orange tags are dynamic (warm-up), teal are static (cooldown), green are activation.</p></div>
+    ${items.map(exCard).join('')}`;
+},
+
+pain(){ return `
+  <div class="hero" style="margin-bottom:6px"><h2 class="display" style="font-size:32px">PAIN <span style="color:var(--red)">RULES</span></h2>
+    <p>One simple traffic-light system every client can understand. Teach it on day one.</p></div>
+  <div class="light g"><div class="dot"></div><div><h4>GREEN <small>— 0 to 3 / 10</small></h4>
+    <p>Mild tension, stretch, or working burn that eases after. Good to go — train as planned.</p></div></div>
+  <div class="light y"><div class="dot"></div><div><h4>YELLOW <small>— 4 to 5 / 10</small></h4>
+    <p>Noticeable ache or pinch. Reduce range, drop the load, slow it down, or swap the move. Re-test — if it clears, continue; if it climbs, stop.</p></div></div>
+  <div class="light r"><div class="dot"></div><div><h4>RED <small>— 6+ / 10, sharp, or "wrong"</small></h4>
+    <p>Sharp, stabbing, radiating, or pain that lingers after. <b>Stop the movement.</b> Don't push through joint pain. If it persists, use the red-flag list.</p></div></div>
+
+  <div class="block"><h3>Safe modification ladder</h3>
+    <p>When something hurts, climb <i>down</i> this ladder one rung at a time until it's pain-free:</p>
+    <ul>
+      <li><b>Shrink the range</b> — go only as deep as it feels clean.</li>
+      <li><b>Slow the tempo</b> — control removes the aggravating snap.</li>
+      <li><b>Drop the load / height</b> — lighter band, lower box, no weight.</li>
+      <li><b>Change the angle</b> — incline a push-up, support a lunge, switch unilateral to bilateral.</li>
+      <li><b>Swap the move</b> — keep the goal, pick a friendlier exercise (e.g. figure-4 instead of pigeon).</li>
+      <li><b>Skip and note it</b> — park it for today and flag it for follow-up.</li>
+    </ul></div>
+  <div class="block"><h3>Two lines to remember</h3>
+    <p>"A stretch should feel like <b>tension</b>, not pain."</p>
+    <p style="margin-bottom:0">"If it <b>sharpens, radiates, or lingers</b> — that's a stop sign, not a challenge."</p></div>`;
+},
+
+redflags(){ return `
+  <div class="hero" style="margin-bottom:6px"><h2 class="display" style="font-size:30px">RED FLAGS — <span style="color:var(--red)">REFER OUT</span></h2>
+    <p>You're a coach, not a clinician. These signs mean: stop, and send them to a doctor or physical therapist.</p></div>
+  <div class="block">
+    <ul>
+      <li><b>Sharp, locking, or "giving way"</b> in a joint — or it catches and won't move.</li>
+      <li><b>Numbness, tingling, or pain shooting</b> down an arm or leg.</li>
+      <li><b>Swelling, significant bruising, or visible deformity.</b></li>
+      <li><b>Pain at rest or at night</b> that isn't from normal soreness.</li>
+      <li><b>Pain getting worse</b> day over day instead of better.</li>
+      <li><b>Calf pain with swelling, warmth, or redness</b> — don't massage or stretch it; refer same day.</li>
+      <li><b>A "pop" with immediate swelling or loss of function.</b></li>
+      <li><b>Recent concussion / head knock</b> — headache, dizziness, fogginess, light sensitivity.</li>
+    </ul></div>
+  <div class="light r"><div class="dot"></div><div><h4>Call emergency services now</h4>
+    <p>Chest pain or pressure · shortness of breath · fainting · sudden severe headache · confusion · face/arm/speech changes (stroke signs). Stop everything and get help.</p></div></div>
+  <div class="block"><h3>How to refer without alarm</h3>
+    <p style="margin-bottom:0">"This is a little outside what I should be coaching through. I'd feel better if you got it looked at by a doctor or PT so we don't make it worse — and once you're cleared, we'll build right back up. In the meantime we'll train around it."</p></div>`;
+},
+
+intake(){
+  const qs=[
+    ['Any current pain or injuries?','Where is it, how bad 0–10, and what makes it better or worse?'],
+    ['Any past injuries or surgeries?','Especially knees, ankles, shoulders, low back, hips.'],
+    ['Anything feel tight or restricted?','Where do you feel stuck or stiff most days?'],
+    ['Are you cleared to exercise?','Any heart, lung, blood-pressure, pregnancy or other medical conditions?'],
+    ['What\'s your training background?','New to this, returning, or experienced and consistent?'],
+    ['What\'s the goal?','Strength, sport, general fitness, mobility, weight, feeling better?'],
+    ['Sport &amp; position (if any)?','Demands differ — a guard, a center, and a lifter warm up differently.'],
+    ['How does your body feel today, 1–10?','Quick daily check before you pick the day\'s routine.'],
+    ['Sleep, stress &amp; soreness today?','Rough night or high soreness = lower the intensity.'],
+    ['Any movement that hurts right now?','Squat, hinge, overhead, running, jumping, twisting?'],
+  ];
+  return `<div class="hero" style="margin-bottom:6px"><h2 class="display" style="font-size:32px">CLIENT INTAKE</h2>
+    <p>Ask these before you program. The last three are a 30-second daily check-in.</p></div>
+    <div class="block">
+      ${qs.map((q,i)=>`<div class="qrow"><div class="n display">${i+1}</div><div class="q"><b>${q[0]}</b><span>${q[1]}</span></div></div>`).join('')}
+    </div>
+    <div class="callout scale"><b>Tip:</b> if a client reports pain 6+/10, anything from the red-flag list, or isn't medically cleared, hold off and refer before training. Note it in writing.</div>`;
+},
+
+scripts(){ return `
+  <div class="hero" style="margin-bottom:6px"><h2 class="display" style="font-size:32px">COACH <span class="hot">SCRIPTS</span></h2>
+    <p>Short, repeatable lines. Make them your own — clients relax when they know what's coming.</p></div>
+  <div class="block"><h3>🔥 Before the session</h3>
+    <p class="script">"We're going to spend a few minutes getting your body warm and your joints moving — this is what lets you move well and train hard <i>safely</i>. Warmth and tension are good. If anything feels sharp or just wrong, tell me right away and we'll adjust — no pushing through pain. Sound good? Let's get it."</p>
+    <p style="font-size:12.5px;color:var(--muted);margin-bottom:0">Shorter version: "Quick warm-up to get the joints moving and the muscles firing. Sharp pain = tell me. Tension = perfect. Let's roll."</p></div>
+  <div class="block"><h3>❄️ After the session</h3>
+    <p class="script post">"Great work today. Now we bring the heart rate down and lengthen what we just trained — this is where recovery actually starts. Breathe slow through the nose, ease into each stretch, no forcing. Get some water and protein in soon, and aim for solid sleep tonight — that's when your body adapts and gets stronger."</p>
+    <p style="font-size:12.5px;color:var(--muted);margin-bottom:0">Shorter version: "Let's cool down and stretch the big movers. Slow breaths, no forcing. Hydrate, eat, sleep — that's the real recovery."</p></div>
+  <div class="block"><h3>🗣️ Youth / parent-friendly line</h3>
+    <p class="script">"We always warm up first and cool down after — it's what real athletes do, and it keeps you on the court instead of on the bench. We land soft, knees over toes, and if something hurts we speak up. That's how we get better and stay healthy."</p></div>`;
+},
+
+weekly(){ return `
+  <div class="hero" style="margin-bottom:6px"><h2 class="display" style="font-size:32px">WEEKLY <span class="cold">USE GUIDE</span></h2>
+    <p>Every session gets a warm-up and a cooldown. Match the warm-up to what the session is.</p></div>
+  <div class="block"><h3>The non-negotiables</h3>
+    <ul>
+      <li><b>Before every session:</b> a warm-up (5–15 min by time &amp; level).</li>
+      <li><b>After every session:</b> a cooldown (5–10 min).</li>
+      <li><b>Match the prep to the work:</b> lifting → pre-lift; hoops → pre-game; general → standard.</li>
+      <li><b>1–2 recovery flows / week</b> on off days to chip away at tight areas.</li>
+      <li><b>Tight areas:</b> add that area's mobility 3–4×/week — consistency changes range, not one big session.</li>
+    </ul></div>
+  <div class="block"><h3>Sample week — general fitness client</h3>
+    <table class="wtable"><thead><tr><th>Day</th><th>Warm-Up</th><th>Cooldown</th></tr></thead><tbody>
+      <tr><td>Mon — Lift</td><td>Pre-Lift (8–10)</td><td>Full (10)</td></tr>
+      <tr><td>Tue — Cardio</td><td>Quick (5)</td><td>Quick (5)</td></tr>
+      <tr><td>Wed — Off</td><td colspan="2">Recovery Mobility Flow (15–20)</td></tr>
+      <tr><td>Thu — Lift</td><td>Pre-Lift (8–10)</td><td>Full (10)</td></tr>
+      <tr><td>Fri — Cardio</td><td>Standard (10)</td><td>Quick (5)</td></tr>
+      <tr><td>Sat — Active</td><td>Quick (5)</td><td>Quick (5)</td></tr>
+      <tr><td>Sun — Off</td><td colspan="2">Optional Recovery Flow</td></tr>
+    </tbody></table></div>
+  <div class="block"><h3>Sample week — in-season basketball</h3>
+    <table class="wtable"><thead><tr><th>Day</th><th>Warm-Up</th><th>Cooldown</th></tr></thead><tbody>
+      <tr><td>Practice</td><td>Athlete (15)</td><td>Full (10)</td></tr>
+      <tr><td>Lift</td><td>Pre-Lift (8–10)</td><td>Full (10)</td></tr>
+      <tr><td>Game Day</td><td>Pre-Game (12–15)</td><td>Quick (5) + breathe</td></tr>
+      <tr><td>Off Day</td><td colspan="2">Recovery Flow + extra ankle/hip work</td></tr>
+    </tbody></table></div>
+  <div class="callout scale"><b>Progressing levels:</b> move a client up only when they own the regressions with clean technique — not just because weeks passed. Beginner → Intermediate → Athlete is earned by quality.</div>`;
+},
+
+print(){ return `
+  <div class="hero" style="margin-bottom:6px"><h2 class="display" style="font-size:32px">PRINTABLE <span class="hot">CARDS</span></h2>
+    <p>Generate a clean, ink-friendly sheet you can print or save as PDF. Each card has the cue, the mistake to avoid, and a progression + regression.</p></div>
+  <div class="grid1">
+    ${navCard('🔥','amber','Print — Full Exercise Library','Every move as a trainer card','printLibrary(\'all\')')}
+    ${navCard('🤸','volt','Print — Warm-Up &amp; Activation','Dynamic + activation only','printLibrary(\'warm\')')}
+    ${navCard('❄️','cool','Print — Cooldown &amp; Mobility','Static stretch + foam roll','printLibrary(\'cool\')')}
+    ${navCard('🛬','steel','Print — Landing &amp; Plyo','Jump &amp; cut safety drills','printLibrary(\'plyo\')')}
+  </div>
+  <div class="eyebrow">Or print a single routine</div>
+  <div class="grid2">
+    ${Object.keys(R).map(k=>`<button class="rcard ${R[k].color}" onclick="printRoutine('${k}')"><div class="accent"></div>
+      <h3 style="margin:2px 0 4px;font-size:14px">${R[k].title}</h3><p>Print card ›</p></button>`).join('')}
+  </div>
+  <div class="callout" style="margin-top:16px"><b>How:</b> tap a print option, then choose your printer — or "Save as PDF" in the print dialog to keep a digital copy or send to a client.</div>`;
+},
+
+tools(){ return `
+  <div class="hero" style="margin-bottom:4px"><h2 class="display" style="font-size:34px">COACH <span class="hot">TOOLS</span></h2>
+    <p>Safety, intake, scripts and planning — everything that isn't a routine.</p></div>
+  <div class="grid1" style="margin-top:14px">
+    ${navCard('🚦','red','Pain Rules &amp; Modifications','Traffic-light system + safe swaps','push(\'pain\')')}
+    ${navCard('🚩','red','Red Flags — When to Refer','Stop signs that need a pro','push(\'redflags\')')}
+    ${navCard('📋','muted','Client Intake Questions','Ask before you program','push(\'intake\')')}
+    ${navCard('🗣️','muted','Coach Scripts','What to say before &amp; after','push(\'scripts\')')}
+    ${navCard('📅','muted','Weekly Use Guide','Slot it into the week','push(\'weekly\')')}
+    ${navCard('🖨️','muted','Printable Trainer Cards','Print library or a routine','push(\'print\')')}
+    ${navCard('⚡','volt','Activation Library','Glutes, core, adductors, calves','push(\'activation\')')}
+    ${navCard('🛬','steel','Landing &amp; Injury Prevention','Safe knees for jumpers','push(\'landing\')')}
+  </div>`;
+},
+
+/* ---- Phase 1: Clients + Program Builder (data-driven; filled by after-render hooks) ---- */
+clients(){ return `
+  <div class="hero" style="margin-bottom:10px"><h2 class="display" style="font-size:34px">MY <span class="cold">CLIENTS</span></h2>
+    <p>Add a client, then build and save their warm-ups, mobility and cooldowns. Tap a saved program to run the timer.</p></div>
+  <button class="add-primary" onclick="push('clientForm')">＋ New client</button>
+  <div id="clientList"><div class="empty"><div class="em-ic">⏳</div><p>Loading…</p></div></div>`;
+},
+
+clientDetail(id){ return `<div id="cdWrap"><div class="empty"><div class="em-ic">⏳</div><p>Loading…</p></div></div>`; },
+
+clientForm(id){ return `<div id="cfWrap"></div>`; },
+
+programBuilder(){ return `<div id="pbWrap"></div>`; },
+
+};
+
+/* ---- shared: exercise card + library with filter ---- */
+function badgeFor(cat){
+  return {dyn:['dyn','Dynamic'],act:['act','Activation'],sta:['sta','Static'],plyo:['plyo','Plyo / Landing']}[cat];
+}
+function exCard(e){
+  const [bc,bl]=badgeFor(e.cat);
+  return `<div class="ex">
+    <div class="top"><h3>${e.n}</h3><span class="badge ${bc}">${bl}</span></div>
+    <div class="dose">${e.dose}</div>
+    <div class="line cue"><span class="k">✓</span><span class="v"><b>Cue:</b> ${e.cue}</span></div>
+    <div class="line miss"><span class="k">✕</span><span class="v"><b>Avoid:</b> ${e.miss}</span></div>
+    <div class="line pro"><span class="k">↑</span><span class="v"><b>Harder:</b> ${e.pro}</span></div>
+    <div class="line reg"><span class="k">↓</span><span class="v"><b>Easier:</b> ${e.reg}</span></div>
+    <div class="areatags">${e.areas.map(a=>`<span>${a}</span>`).join('')}</div>
+  </div>`;
+}
+let libState={cats:[],filter:'All'};
+function libraryView(title,sub,cats,accent){
+  libState={cats,filter:'All'};
+  const pool=EX.filter(e=>cats.includes(e.cat));
+  const areas=['All',...Array.from(new Set(pool.flatMap(e=>e.areas)))];
+  setTimeout(()=>{window._libPool=pool;window._libAreas=areas;},0);
+  return `<div class="hero" style="margin-bottom:4px"><h2 class="display" style="font-size:34px">${title.replace(/ Library/,'')} <span class="${accent==='cool'?'cold':'hot'}" style="font-size:20px">LIBRARY</span></h2>
+    <p>${sub}</p></div>
+    <div class="filterbar" id="libFilter">
+      ${areas.map((a,i)=>`<button class="${i===0?'on':''}" onclick="filterLib('${a.replace(/'/g,"\\'")}',this)">${a}</button>`).join('')}
+    </div>
+    <div id="libList">${pool.map(exCard).join('')}</div>`;
+}
+function filterLib(area,btn){
+  document.querySelectorAll('#libFilter button').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  const pool=window._libPool||[];
+  const list=area==='All'?pool:pool.filter(e=>e.areas.includes(area));
+  document.getElementById('libList').innerHTML=list.map(exCard).join('')||'<p style="color:var(--muted)">No drills here.</p>';
+  window.scrollTo({top:document.getElementById('libFilter').offsetTop-70,behavior:'smooth'});
+}
+
+/* ---- Wizard ---- */
+function initWizard(){
+  document.querySelectorAll('.seg').forEach(seg=>{
+    seg.querySelectorAll('button').forEach(b=>{
+      b.addEventListener('click',()=>{
+        seg.querySelectorAll('button').forEach(x=>x.classList.remove('on'));
+        b.classList.add('on');
+      });
+    });
+  });
+}
+function getSeg(name){ const el=document.querySelector(`.seg[data-w="${name}"] button.on`); return el?el.dataset.v:''; }
+function runWizard(){
+  const level=getSeg('level'), type=getSeg('type'), time=getSeg('time');
+  const area=document.getElementById('wArea').value;
+  const injury=document.getElementById('wInjury').checked;
+  let key, note='';
+  if(type==='Recovery'){ key='recovery'; note='Off-day flow — go gentle and breathe.'; }
+  else if(type==='Basketball'){
+    if(time==='15'||level==='Athlete'){ key='bball'; }
+    else if(time==='10'){ key='w10'; note='Add slides, closeouts &amp; 5 stick-the-landings from the Basketball pre-game.'; }
+    else { key='q5'; note='Add defensive slides + 5 stick-the-landings before tip.'; }
+  }
+  else if(type==='Weights'){
+    if(time==='5'){ key='q5'; note='Add band pull-aparts + a glute bridge, then ramp-up sets.'; }
+    else { key='lift'; }
+  }
+  else { // General
+    if(time==='5') key='q5';
+    else if(time==='10') key='w10';
+    else key = (level==='Athlete')?'a15':'w10';
+    if(time==='15'&&level!=='Athlete') note='At this level, the 10-min standard is plenty — add mobility instead of intensity.';
+  }
+  if(level==='Beginner') note=(note?note+' ':'')+'Use the regressions and support balance.';
+
+  const r=R[key];
+  let html=`<div class="lead">Your pick</div><h4>${r.title}</h4>
+    <div class="chips"><span class="pill amber">${r.mins} min</span><span class="pill">${r.level}</span><span class="pill">${r.type}</span></div>`;
+  if(note) html+=`<div class="add"><b>Add-on:</b> ${note}</div>`;
+  if(area) html+=`<div class="add">Targeting tight <b>${area}</b>? <a onclick="push('areaList','${encodeURIComponent(area)}')" style="cursor:pointer">Open ${area} mobility ›</a></div>`;
+  if(injury) html+=`<div class="add warn"><b>Injury caution on.</b> Review the <a onclick="push('pain')" style="cursor:pointer">pain rules</a> &amp; <a onclick="push('redflags')" style="cursor:pointer">red flags</a> first.</div>`;
+  html+=`<button class="open" onclick="push('routine','${key}')">Open this routine ›</button>`;
+  const box=document.getElementById('wResult');
+  box.innerHTML=html; box.classList.add('show');
+  box.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+/* ============================================================
+   RUNNER (the signature feature)
+   ============================================================ */
+let run={routine:null,i:0,timer:null,remaining:0,mode:'down',paused:false,auto:true,cold:false};
+
+// Run a built-in routine (by key) or a saved client program (by id)
+function runBuiltin(key){ startRunner(R[key]); }
+async function runProgram(id){
+  const p = await Store.getProgram(id);
+  if(!p){ alert('Program not found.'); return; }
+  startRunner(programToRoutine(p));
+}
+// Saved programs store steps as objects; the runner expects [name,dose,cue] arrays
+function programToRoutine(p){
+  return { title:p.title||'Program', tag:(p.kind==='cool'?'cool':'warm'),
+    steps:(p.steps||[]).map(s=>[s.name, s.dose, s.cue]) };
+}
+
+function parseSeconds(d){
+  d=d.toLowerCase();
+  let m=d.match(/(\d+)\s*min/); if(m) return parseInt(m[1])*60;
+  m=d.match(/(\d+)\s*sec/); if(m) return parseInt(m[1]);
+  m=d.match(/(\d+)\s*s\b/); if(m) return parseInt(m[1]);
+  return null; // rep-based
+}
+function fmt(s){ s=Math.max(0,Math.round(s)); const m=Math.floor(s/60); const ss=s%60; return m+':'+String(ss).padStart(2,'0'); }
+
+function startRunner(routine){
+  if(!routine || !routine.steps || !routine.steps.length){
+    alert('This program has no exercises yet — add a few moves, then run it.'); return;
+  }
+  run.routine=routine; run.i=0; run.cold=(routine.tag==='cool'); run.auto=true; run.paused=false;
+  document.getElementById('runner').classList.add('show');
+  document.getElementById('runner').classList.toggle('cold-run', run.cold);
+  loadStep();
+}
+function loadStep(){
+  clearInterval(run.timer);
+  const r=run.routine; const total=r.steps.length;
+  if(run.i>=total){ renderDone(); return; }
+  const [name,dose,cue]=r.steps[run.i];
+  const secs=parseSeconds(dose);
+  run.mode = secs!==null?'down':'up';
+  run.remaining = secs!==null?secs:0;
+  run.paused=false;
+  drawRunner();
+  startTick();
+}
+function startTick(){
+  clearInterval(run.timer);
+  run.timer=setInterval(()=>{
+    if(run.paused) return;
+    if(run.mode==='down'){
+      run.remaining--;
+      if(run.remaining<=0){
+        clearInterval(run.timer);
+        flashClock();
+        beep();
+        if(run.auto){ setTimeout(nextStep,650); }
+        else { document.getElementById('clockEl').textContent='0:00'; return; }
+      }
+    } else {
+      run.remaining++;
+    }
+    const c=document.getElementById('clockEl'); if(c) c.textContent=fmt(run.remaining);
+  },1000);
+}
+function drawRunner(){
+  const r=run.routine; const total=r.steps.length;
+  const [name,dose,cue]=r.steps[run.i];
+  const dots=r.steps.map((_,idx)=>`<i class="${idx<run.i?'done':idx===run.i?'cur':''}"></i>`).join('');
+  const clockTxt = run.mode==='down'?fmt(run.remaining):'0:00';
+  const hint = run.mode==='up'?'<div class="autorow">Rep-based — go at your pace, then tap Next</div>'
+    :`<div class="autorow"><input type="checkbox" id="autoChk" ${run.auto?'checked':''} onchange="run.auto=this.checked"> Auto-advance when timer ends</div>`;
+  document.getElementById('runnerIn').innerHTML=`
+    <div class="rtop">
+      <div class="rname">${r.title} · ${run.i+1}/${total}</div>
+      <button class="x" onclick="closeRunner()" aria-label="Close">✕</button>
+    </div>
+    <div class="progress ${run.cold?'cold':''}">${dots}</div>
+    <div class="stepwrap">
+      <div class="count">${run.mode==='up'?'Reps':'Timer'}</div>
+      <div class="movename display">${name}</div>
+      <div class="dosebig">${dose}</div>
+      <div class="clock display" id="clockEl">${clockTxt}</div>
+    </div>
+    <div class="cuebar">
+      <div class="lbl">Coach cue</div>
+      <p>${cue}</p>
+    </div>
+    ${hint}
+    <div class="rctrl">
+      <button onclick="prevStep()" ${run.i===0?'disabled style="opacity:.4"':''}>‹ Prev</button>
+      <button class="play" onclick="togglePause()" id="playBtn">${run.paused?'▶':'❚❚'}</button>
+      <button class="next" onclick="nextStep()">${run.i===total-1?'Finish ✓':'Next ›'}</button>
+    </div>`;
+}
+function flashClock(){ const c=document.getElementById('clockEl'); if(c){ c.classList.add('flash'); setTimeout(()=>c.classList.remove('flash'),500);} }
+function togglePause(){ run.paused=!run.paused; const b=document.getElementById('playBtn'); if(b) b.textContent=run.paused?'▶':'❚❚'; }
+function nextStep(){ clearInterval(run.timer); run.i++; loadStep(); }
+function prevStep(){ if(run.i>0){ clearInterval(run.timer); run.i--; loadStep(); } }
+function renderDone(){
+  clearInterval(run.timer);
+  const r=run.routine;
+  document.getElementById('runnerIn').innerHTML=`
+    <div class="rtop"><div class="rname">${r.title}</div><button class="x" onclick="closeRunner()">✕</button></div>
+    <div class="stepwrap">
+      <div class="done-screen">
+        <div class="big display">${run.cold?'RECOVERED':'PRIMED &amp; READY'}</div>
+        <p style="color:var(--muted);font-size:14px;max-width:30ch;margin:10px auto 0">
+          ${run.cold?'Nice work winding down. Hydrate, refuel, and get good sleep — that\'s where adaptation happens.':'Body\'s warm and switched on. Go get after it — and remember the pain rules if anything feels off.'}</p>
+      </div>
+    </div>
+    <div class="rctrl">
+      <button onclick="run.i=0;loadStep()">↻ Restart</button>
+      <button class="next" onclick="closeRunner()">Done ✓</button>
+    </div>`;
+}
+function closeRunner(){ clearInterval(run.timer); document.getElementById('runner').classList.remove('show'); }
+function beep(){
+  try{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    const o=ctx.createOscillator(), g=ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.type='sine'; o.frequency.value=run.cold?520:760;
+    g.gain.setValueAtTime(.0001,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(.25,ctx.currentTime+.02);
+    g.gain.exponentialRampToValueAtTime(.0001,ctx.currentTime+.32);
+    o.start(); o.stop(ctx.currentTime+.34);
+  }catch(e){}
+}
+
+/* ============================================================
+   PRINT
+   ============================================================ */
+function pcard(e){
+  const [_,bl]=badgeFor(e.cat);
+  return `<div class="pcard">
+    <h3>${e.n}</h3>
+    <div class="pd">${bl.toUpperCase()} · ${e.dose} · ${e.areas.join(', ')}</div>
+    <div class="pl"><b>Cue:</b> ${e.cue}</div>
+    <div class="pl"><b>Avoid:</b> ${e.miss}</div>
+    <div class="pl"><b>Progress:</b> ${e.pro}</div>
+    <div class="pl"><b>Regress:</b> ${e.reg}</div>
+  </div>`;
+}
+function doPrint(html){
+  document.getElementById('printArea').innerHTML=html;
+  window.print();
+}
+function printLibrary(which){
+  let pool, title;
+  if(which==='all'){pool=EX; title='Full Exercise Library';}
+  else if(which==='warm'){pool=EX.filter(e=>e.cat==='dyn'||e.cat==='act'); title='Warm-Up & Activation';}
+  else if(which==='cool'){pool=EX.filter(e=>e.cat==='sta'); title='Cooldown & Mobility';}
+  else {pool=EX.filter(e=>e.cat==='plyo'); title='Landing & Plyometrics';}
+  doPrint(`<h1>PRIME — ${title}</h1><div class="psub">Coach cards · cue · mistake to avoid · progression / regression</div>${pool.map(pcard).join('')}`);
+}
+function printRoutine(key){
+  const r=R[key];
+  const rows=r.steps.map((s,i)=>`<div class="pcard"><h3>${i+1}. ${s[0]}</h3><div class="pd">${s[1]}</div><div class="pl"><b>Cue:</b> ${s[2]}</div></div>`).join('');
+  const scale=`<div class="pcard"><h3>Level scaling</h3>
+    <div class="pl"><b>Beginner:</b> ${r.scale.Beginner}</div>
+    <div class="pl"><b>Intermediate:</b> ${r.scale.Intermediate}</div>
+    <div class="pl"><b>Athlete:</b> ${r.scale.Athlete}</div></div>`;
+  doPrint(`<h1>PRIME — ${r.title}</h1><div class="psub">${r.level} · ${r.type} · ${r.mins} min · ${r.blurb}</div>${scale}${rows}
+    <div class="pcard"><h3>Pain rule</h3><div class="pl">Tension &amp; warmth = good. Sharp, pinching, or radiating pain = stop &amp; swap. 0–3/10 train · 4–5/10 modify · 6+/10 stop.</div></div>`);
+}
+
+/* ============================================================
+   STORE — persistence seam (IndexedDB, with in-memory fallback).
+   Every read/write goes through here. Phase 2 swaps the impl for cloud.
+   ============================================================ */
+const Store = (function(){
+  const DB='prime', VER=1;
+  let db=null, mem=null;
+  function useMem(){ if(!mem) mem={clients:new Map(),programs:new Map(),meta:new Map()}; return mem; }
+  function byName(a,b){ return (a.name||'').localeCompare(b.name||''); }
+  function byCreated(a,b){ return (a.createdAt||'').localeCompare(b.createdAt||''); }
+  function openDB(){
+    return new Promise((resolve)=>{
+      let req;
+      try{ req=indexedDB.open(DB,VER); }
+      catch(e){ resolve(null); return; }
+      req.onupgradeneeded=()=>{
+        const d=req.result;
+        if(!d.objectStoreNames.contains('clients')) d.createObjectStore('clients',{keyPath:'id'});
+        if(!d.objectStoreNames.contains('programs')){
+          const s=d.createObjectStore('programs',{keyPath:'id'}); s.createIndex('clientId','clientId',{unique:false});
+        }
+        if(!d.objectStoreNames.contains('meta')) d.createObjectStore('meta',{keyPath:'key'});
+      };
+      req.onsuccess=()=>resolve(req.result);
+      req.onerror=()=>resolve(null);
+    });
+  }
+  function os(store,mode){ return db.transaction(store,mode).objectStore(store); }
+  function p(r){ return new Promise((res,rej)=>{ r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+  return {
+    async init(){
+      db=await openDB();
+      if(!db) console.warn('PRIME: IndexedDB unavailable — using in-memory store (data won\'t persist this session).');
+    },
+    async listClients(){
+      if(!db) return Array.from(useMem().clients.values()).sort(byName);
+      return (await p(os('clients','readonly').getAll())).sort(byName);
+    },
+    async getClient(id){
+      if(!db) return useMem().clients.get(id)||null;
+      return (await p(os('clients','readonly').get(id)))||null;
+    },
+    async saveClient(c){
+      if(!db){ useMem().clients.set(c.id,c); return c; }
+      await p(os('clients','readwrite').put(c)); return c;
+    },
+    async deleteClient(id){
+      if(!db){ useMem().clients.delete(id); for(const[k,pr]of useMem().programs){ if(pr.clientId===id) useMem().programs.delete(k);} return; }
+      await p(os('clients','readwrite').delete(id));
+      const ps=await this.listPrograms(id);
+      const s=os('programs','readwrite'); ps.forEach(pr=>s.delete(pr.id));
+    },
+    async listPrograms(clientId){
+      if(!db){ let a=Array.from(useMem().programs.values()); if(clientId) a=a.filter(pr=>pr.clientId===clientId); return a.sort(byCreated); }
+      const all = clientId
+        ? await p(os('programs','readonly').index('clientId').getAll(clientId))
+        : await p(os('programs','readonly').getAll());
+      return all.sort(byCreated);
+    },
+    async getProgram(id){
+      if(!db) return useMem().programs.get(id)||null;
+      return (await p(os('programs','readonly').get(id)))||null;
+    },
+    async saveProgram(pr){
+      if(!db){ useMem().programs.set(pr.id,pr); return pr; }
+      await p(os('programs','readwrite').put(pr)); return pr;
+    },
+    async deleteProgram(id){
+      if(!db){ useMem().programs.delete(id); return; }
+      await p(os('programs','readwrite').delete(id));
+    },
+    async getMeta(key){
+      if(!db) return useMem().meta.get(key);
+      const r=await p(os('meta','readonly').get(key)); return r?r.value:undefined;
+    },
+    async setMeta(key,value){
+      if(!db){ useMem().meta.set(key,value); return; }
+      await p(os('meta','readwrite').put({key,value}));
+    },
+  };
+})();
+
+/* ---- small utils ---- */
+function uid(){ return (window.crypto&&crypto.randomUUID)?crypto.randomUUID():'id-'+Date.now()+'-'+Math.random().toString(16).slice(2); }
+function nowISO(){ return new Date().toISOString(); }
+function esc(s){ return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+/* ============================================================
+   CLIENTS — list + detail
+   ============================================================ */
+async function loadClientList(){
+  const el=document.getElementById('clientList'); if(!el) return;
+  const clients=await Store.listClients();
+  if(!clients.length){
+    el.innerHTML=`<div class="empty"><div class="em-ic">👋</div><h3>No clients yet</h3>
+      <p>Add your first client to start building and saving their programs.</p></div>`;
+    return;
+  }
+  const rows=await Promise.all(clients.map(async c=>{
+    const n=(await Store.listPrograms(c.id)).length;
+    const sub=[c.level,c.sport].filter(Boolean).join(' · ')||'No details yet';
+    const init=((c.name||'?').trim().charAt(0)||'?').toUpperCase();
+    return `<button class="cl-card" onclick="push('clientDetail','${c.id}')">
+      <div class="cl-av">${esc(init)}</div>
+      <div class="ct"><h3>${esc(c.name||'Unnamed')}</h3><p>${esc(sub)}</p></div>
+      <div class="cnt"><b>${n}</b><span>program${n===1?'':'s'}</span></div></button>`;
+  }));
+  el.innerHTML=rows.join('');
+}
+
+async function loadClientDetail(id){
+  const el=document.getElementById('cdWrap'); if(!el) return;
+  const c=await Store.getClient(id);
+  if(!c){
+    el.innerHTML=`<div class="empty"><div class="em-ic">🔍</div><h3>Client not found</h3><p>It may have been deleted.</p></div>
+      <button class="btn sec full" onclick="nav('clients')" style="margin-top:14px">Back to clients</button>`;
+    return;
+  }
+  const programs=await Store.listPrograms(id);
+  const warm=programs.filter(x=>x.kind!=='cool'), cool=programs.filter(x=>x.kind==='cool');
+  const pgCard=pr=>{
+    const w=pr.kind!=='cool'; const n=(pr.steps||[]).length;
+    return `<div class="pg-card ${w?'warm':'cool'}"><div class="accent"></div>
+      <div class="pg-top"><h3>${esc(pr.title||'Untitled program')}</h3>
+        <span class="kindtag ${w?'warm':'cool'}">${w?'Warm-Up':'Cooldown'}</span></div>
+      <div class="pg-sub">${n} move${n===1?'':'s'}${pr.source==='template'?' · from template':''}</div>
+      <div class="pg-act">
+        <button class="btn ${w?'primary':'coolb'} sm" onclick="runProgram('${pr.id}')">▶ Run</button>
+        <button class="btn sec sm" onclick="editProgram('${pr.id}')">Edit</button></div></div>`;
+  };
+  let h=`<div class="rd-head">
+    <div class="chips" style="margin-top:2px">
+      ${c.level?`<span class="pill amber">${esc(c.level)}</span>`:''}
+      ${c.sport?`<span class="pill">${esc(c.sport)}</span>`:''}
+    </div>
+    <h2 class="display" style="font-size:30px;margin:8px 0 4px">${esc(c.name||'Unnamed')}</h2>
+    ${c.goals?`<p style="color:var(--muted);font-size:13px;margin:0">Goal: ${esc(c.goals)}</p>`:''}
+  </div>`;
+  if(c.injuries && c.injuries.trim())
+    h+=`<div class="callout" style="border-color:rgba(255,90,90,.3);background:var(--red-soft)">
+      <b style="color:var(--red)">Injury notes:</b> ${esc(c.injuries)} · <a onclick="push('pain')" style="cursor:pointer">pain rules ›</a></div>`;
+  if(c.notes && c.notes.trim())
+    h+=`<div class="callout"><b>Notes:</b> ${esc(c.notes)}</div>`;
+  h+=`<div class="btnrow"><button class="btn primary full" onclick="newProgram('${c.id}','warm')">＋ Build a program</button></div>
+    <button class="btn sec full" onclick="openTemplatePicker('${c.id}')" style="margin-bottom:4px">Start from a template</button>
+    <div class="eyebrow">Saved programs</div>`;
+  if(!programs.length)
+    h+=`<div class="empty" style="padding:26px 20px"><div class="em-ic">🗂️</div>
+      <p>No programs yet. Build one from scratch or start from a template above.</p></div>`;
+  else h+=warm.map(pgCard).join('')+cool.map(pgCard).join('');
+  h+=`<div class="btnrow"><button class="btn sec sm" onclick="push('clientForm','${c.id}')">Edit client</button>
+    <button class="btn danger sm" onclick="confirmDeleteClient('${c.id}')">Delete client</button></div>`;
+  el.innerHTML=h;
+}
+
+async function confirmDeleteClient(id){
+  const c=await Store.getClient(id);
+  if(!confirm(`Delete ${c?c.name:'this client'} and all their saved programs? This can't be undone.`)) return;
+  await Store.deleteClient(id);
+  nav('clients');
+}
+
+/* ============================================================
+   CLIENT FORM (new / edit)
+   ============================================================ */
+async function initClientForm(id){
+  const el=document.getElementById('cfWrap'); if(!el) return;
+  let c={name:'',level:'',sport:'',goals:'',injuries:'',notes:''}, editing=false;
+  if(id){ const ex=await Store.getClient(id); if(ex){ c=ex; editing=true; } }
+  const levels=['Beginner','Intermediate','Athlete'];
+  const lbl='display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted2);font-weight:700;margin-bottom:7px';
+  el.innerHTML=`
+    <div class="hero" style="margin-bottom:8px"><h2 class="display" style="font-size:30px">${editing?'EDIT CLIENT':'NEW CLIENT'}</h2></div>
+    <div class="wizard">
+      <div class="field"><label style="${lbl}">Name</label>
+        <input class="input" id="fName" value="${esc(c.name)}" placeholder="e.g. Marcus T."></div>
+      <div class="field"><label style="${lbl}">Level</label>
+        <div class="seg" id="fLevel">${levels.map(l=>`<button data-v="${l}" class="${c.level===l?'on':''}" onclick="segPick(this)">${l}</button>`).join('')}</div></div>
+      <div class="field"><label style="${lbl}">Sport / focus</label>
+        <input class="input" id="fSport" value="${esc(c.sport)}" placeholder="Basketball — guard, general fitness…"></div>
+      <div class="field"><label style="${lbl}">Goal</label>
+        <input class="input" id="fGoal" value="${esc(c.goals)}" placeholder="Strength, mobility, return from injury…"></div>
+      <div class="field"><label style="${lbl}">Injury notes <span style="color:var(--muted2)">(optional)</span></label>
+        <textarea class="input" id="fInj" placeholder="Anything to train around — shown on their page.">${esc(c.injuries)}</textarea></div>
+      <div class="field"><label style="${lbl}">General notes <span style="color:var(--muted2)">(optional)</span></label>
+        <textarea class="input" id="fNotes" placeholder="Schedule, preferences, reminders…">${esc(c.notes)}</textarea></div>
+      <div class="btnrow"><button class="btn primary full" onclick="saveClientForm(${editing?`'${id}'`:'null'})">${editing?'Save changes':'Add client'}</button></div>
+    </div>`;
+}
+function segPick(btn){ const seg=btn.parentElement; seg.querySelectorAll('button').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); }
+function getSegV(id){ const el=document.querySelector('#'+id+' button.on'); return el?el.dataset.v:''; }
+async function saveClientForm(id){
+  const name=document.getElementById('fName').value.trim();
+  if(!name){ alert('Give the client a name first.'); return; }
+  const existing = id? await Store.getClient(id) : null;
+  const c={ id:id||uid(), ownerId:'local', name,
+    level:getSegV('fLevel'),
+    sport:document.getElementById('fSport').value.trim(),
+    goals:document.getElementById('fGoal').value.trim(),
+    injuries:document.getElementById('fInj').value.trim(),
+    notes:document.getElementById('fNotes').value.trim(),
+    createdAt: existing?existing.createdAt:nowISO(), updatedAt:nowISO() };
+  await Store.saveClient(c);
+  goDetail(c.id);
+}
+
+/* ============================================================
+   PROGRAM BUILDER
+   ============================================================ */
+let builder=null; // {id,clientId,title,kind,source,steps:[{name,dose,cue}]}
+
+function newProgram(clientId, kind){
+  builder={ id:uid(), clientId, title:'', kind:kind||'warm', source:'custom', steps:[] };
+  push('programBuilder');
+}
+async function editProgram(id){
+  const pr=await Store.getProgram(id);
+  if(!pr){ alert('Program not found.'); return; }
+  builder={ id:pr.id, clientId:pr.clientId, title:pr.title, kind:pr.kind, source:pr.source||'custom',
+    steps:(pr.steps||[]).map(s=>({name:s.name,dose:s.dose,cue:s.cue})) };
+  push('programBuilder');
+}
+function templateToBuilder(clientId, key){
+  const r=R[key];
+  builder={ id:uid(), clientId, title:r.title, kind:(r.tag==='cool'?'cool':'warm'), source:'template',
+    steps:r.steps.map(s=>({name:s[0],dose:s[1],cue:s[2]})) };
+  closePicker();
+  push('programBuilder');
+}
+function initBuilder(){ renderBuilder(); }
+
+function renderBuilder(){
+  const el=document.getElementById('pbWrap'); if(!el||!builder) return;
+  const cool=builder.kind==='cool';
+  const lbl='display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted2);font-weight:700;margin-bottom:7px';
+  const steps=builder.steps.map((s,i)=>`
+    <div class="bstep">
+      <div class="ord">
+        <button onclick="moveStep(${i},-1)" ${i===0?'disabled':''} aria-label="Move up">▲</button>
+        <button onclick="moveStep(${i},1)" ${i===builder.steps.length-1?'disabled':''} aria-label="Move down">▼</button>
+      </div>
+      <div class="bmain">
+        <div class="bmove"><span>${esc(s.name)}</span>
+          <button class="del" onclick="removeStep(${i})" aria-label="Remove">✕</button></div>
+        <div class="brow">
+          <div class="bf dose"><label>Dose</label>
+            <input class="bi" value="${esc(s.dose)}" oninput="updStep(${i},'dose',this.value)" placeholder="30 sec"></div>
+          <div class="bf"><label>Coach cue</label>
+            <textarea class="bi" oninput="updStep(${i},'cue',this.value)" placeholder="What to say / focus on">${esc(s.cue)}</textarea></div>
+        </div>
+      </div>
+    </div>`).join('');
+  el.innerHTML=`
+    <div class="hero" style="margin-bottom:8px"><h2 class="display" style="font-size:28px">${builder.source==='template'?'EDIT PROGRAM':'BUILD A PROGRAM'}</h2>
+      <p>Name it, pick a type, add moves, then set each dose and cue. Reorder with the arrows.</p></div>
+    <div class="field"><label style="${lbl}">Program name</label>
+      <input class="input" id="bTitle" value="${esc(builder.title)}" oninput="builder.title=this.value" placeholder="${cool?'e.g. Post-lift cooldown':'e.g. Game-day warm-up'}"></div>
+    <div class="field"><label style="${lbl}">Type</label>
+      <div class="seg ${cool?'cool':''}" id="bKind">
+        <button class="${!cool?'on':''}" onclick="setKind('warm')">Warm-Up</button>
+        <button class="${cool?'on':''}" onclick="setKind('cool')">Cooldown</button></div></div>
+    <div class="eyebrow">Exercises</div>
+    ${builder.steps.length?steps:'<div class="empty" style="padding:24px 20px"><div class="em-ic">➕</div><p>No moves yet — add exercises from the library below.</p></div>'}
+    <button class="add-ex" onclick="openPicker()">＋ Add exercises from library</button>
+    ${builder.steps.length?`<div class="bcount">${builder.steps.length} move${builder.steps.length===1?'':'s'} in this program</div>`:''}
+    <button class="run-btn" onclick="runBuilderNow()" style="position:static;box-shadow:none;margin-top:8px;${cool?'background:linear-gradient(135deg,var(--cool),#1fae9e);color:#06201d':''}">▶ Save &amp; Run It</button>
+    <div class="btnrow">
+      <button class="btn primary full" onclick="saveBuilder()">Save program</button>
+      <button class="btn sec" onclick="cancelBuilder()">Cancel</button>
+    </div>`;
+}
+function setKind(k){ builder.kind=k; renderBuilder(); }
+function moveStep(i,dir){ const j=i+dir; if(j<0||j>=builder.steps.length) return; const a=builder.steps; const t=a[i]; a[i]=a[j]; a[j]=t; renderBuilder(); }
+function removeStep(i){ builder.steps.splice(i,1); renderBuilder(); }
+function updStep(i,field,val){ if(builder.steps[i]) builder.steps[i][field]=val; } // silent: no re-render, preserves focus
+function cancelBuilder(){ if(builder&&builder.clientId) goDetail(builder.clientId); else nav('clients'); }
+
+function builderToProgram(){
+  const title=(builder.title&&builder.title.trim())?builder.title.trim():(builder.kind==='cool'?'Cooldown':'Warm-Up');
+  return { id:builder.id, ownerId:'local', clientId:builder.clientId, title, kind:builder.kind,
+    source:builder.source||'custom', steps:builder.steps.map(s=>({name:s.name,dose:s.dose,cue:s.cue})) };
+}
+async function saveBuilderQuiet(){
+  if(!builder) return;
+  const pr=builderToProgram();
+  const existing=await Store.getProgram(pr.id);
+  pr.createdAt = existing?existing.createdAt:nowISO(); pr.updatedAt=nowISO();
+  await Store.saveProgram(pr);
+}
+async function saveBuilder(){ await saveBuilderQuiet(); goDetail(builder.clientId); }
+async function runBuilderNow(){
+  if(!builder || !builder.steps.length){ alert('Add at least one exercise first.'); return; }
+  await saveBuilderQuiet();
+  startRunner(programToRoutine(builderToProgram()));
+}
+
+/* ============================================================
+   EXERCISE PICKER (shared sheet) + template picker
+   ============================================================ */
+let pickSel=new Set(), pickFilter='All', pickQuery='';
+
+function openPicker(){
+  pickSel=new Set(); pickFilter='All'; pickQuery='';
+  document.getElementById('pickIn').innerHTML=pickMarkup();
+  document.getElementById('pickSheet').classList.add('show');
+  setTimeout(()=>{ const s=document.getElementById('pkSearch'); if(s) s.focus(); },80);
+}
+function closePicker(){ document.getElementById('pickSheet').classList.remove('show'); }
+function pickMarkup(){
+  const cats=[['All','All'],['dyn','Dynamic'],['act','Activation'],['sta','Static'],['plyo','Landing']];
+  return `<div class="sheet-head">
+    <div class="sh-top"><h3>Add exercises</h3><button class="x" onclick="closePicker()" aria-label="Close">✕</button></div>
+    <input class="sheet-search" id="pkSearch" placeholder="Search moves or body areas…" oninput="pickQuery=this.value;refreshPicks()">
+    <div class="filterbar" style="padding:11px 0 0" id="pkFilter">
+      ${cats.map(([c,l])=>`<button class="${c===pickFilter?'on':''}" onclick="pickFilter='${c}';syncPickFilter(this);refreshPicks()">${l}</button>`).join('')}
+    </div>
+  </div>
+  <div class="sheet-body" id="pkList">${pickRows()}</div>
+  <div class="sheet-foot"><button class="btn primary full" id="pkAdd" onclick="commitPicks()">Add ${pickSel.size} exercise${pickSel.size===1?'':'s'}</button></div>`;
+}
+function matchPick(e){
+  if(pickFilter!=='All' && e.cat!==pickFilter) return false;
+  if(pickQuery){ const q=pickQuery.toLowerCase();
+    if(!(e.n.toLowerCase().includes(q) || e.areas.join(' ').toLowerCase().includes(q))) return false; }
+  return true;
+}
+function pickRows(){
+  const list=EX.filter(matchPick);
+  if(!list.length) return '<div class="pick-empty">No moves match — try another search.</div>';
+  return list.map(e=>{
+    const sel=pickSel.has(e.id); const [bc,bl]=badgeFor(e.cat);
+    return `<button class="pick ${sel?'sel':''}" onclick="togglePick('${e.id}',this)">
+      <div class="chk">${sel?'✓':''}</div>
+      <div class="pk"><h4>${e.n}</h4><p>${e.dose} · ${e.areas.join(', ')}</p></div>
+      <span class="pbadge ${bc}">${bl}</span></button>`;
+  }).join('');
+}
+function refreshPicks(){ const l=document.getElementById('pkList'); if(l) l.innerHTML=pickRows(); }
+function syncPickFilter(btn){ document.querySelectorAll('#pkFilter button').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); }
+function togglePick(id,btn){
+  const has=pickSel.has(id);
+  if(has) pickSel.delete(id); else pickSel.add(id);
+  if(btn){ btn.classList.toggle('sel',!has); const c=btn.querySelector('.chk'); if(c) c.textContent=!has?'✓':''; }
+  const add=document.getElementById('pkAdd'); if(add) add.textContent=`Add ${pickSel.size} exercise${pickSel.size===1?'':'s'}`;
+}
+function commitPicks(){
+  if(!pickSel.size){ closePicker(); return; }
+  EX.forEach(e=>{ if(pickSel.has(e.id)) builder.steps.push({name:e.n,dose:e.dose,cue:e.cue}); }); // library order
+  closePicker(); renderBuilder();
+}
+function openTemplatePicker(clientId){
+  const rows=Object.keys(R).map(k=>{
+    const r=R[k]; const w=r.tag!=='cool';
+    return `<button class="pick" onclick="templateToBuilder('${clientId}','${k}')">
+      <div class="pk"><h4>${r.title}</h4><p>${r.mins} min · ${r.type}</p></div>
+      <span class="pbadge ${w?'dyn':'sta'}">${w?'Warm':'Cool'}</span></button>`;
+  }).join('');
+  document.getElementById('pickIn').innerHTML=`<div class="sheet-head">
+    <div class="sh-top"><h3>Start from a template</h3><button class="x" onclick="closePicker()" aria-label="Close">✕</button></div>
+    <p style="margin:0;font-size:12.5px;color:var(--muted)">Creates an editable copy for this client — tweak it freely.</p></div>
+    <div class="sheet-body">${rows}</div>`;
+  document.getElementById('pickSheet').classList.add('show');
+}
+
+/* ============================================================
+   INIT + PWA
+   ============================================================ */
+(async function(){
+  try{ await Store.init(); }catch(e){ console.warn(e); }
+  render('home');
+})();
+
+// Service worker: only registers from a real origin (https / localhost), not file://
+if('serviceWorker' in navigator &&
+   (location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1')){
+  window.addEventListener('load',()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+}
+</script>
+</body>
+</html>
