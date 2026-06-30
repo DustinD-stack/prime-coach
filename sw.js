@@ -1,6 +1,6 @@
 /* PRIME Coach service worker — offline app shell.
    Bump CACHE whenever index.html or assets change to force an update. */
-const CACHE = 'prime-coach-v1';
+const CACHE = 'prime-coach-v3';
 const SHELL = [
   './',
   './index.html',
